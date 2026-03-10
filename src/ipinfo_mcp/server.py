@@ -8,6 +8,7 @@ from fastmcp import FastMCP
 from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.tools.lookup import register_lookup
+from ipinfo_mcp.tools.privacy import register_privacy
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ mcp = FastMCP(
 )
 
 register_lookup(mcp)
+register_privacy(mcp)
 
 
 def main() -> None:
