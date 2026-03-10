@@ -1,6 +1,8 @@
 import math
 from typing import TypedDict
 
+from ipinfo_mcp.client import MAX_BATCH_SIZE
+
 
 class PaginationMeta(TypedDict):
     total_results: int
@@ -11,43 +13,35 @@ class PaginationMeta(TypedDict):
     has_previous: bool
 
 
-class PaginatedResult(TypedDict):
-    _pagination: PaginationMeta
-    results: list[dict[str, object]]
-
-
-def paginate(
-    results: list[dict[str, object]], page: int, page_size: int
-) -> PaginatedResult:
+def paginate_ips(
+    ips: list[str], page: int, page_size: int
+) -> tuple[list[str], PaginationMeta]:
     """
-    Apply pagination to a list of results.
+    Slice a list of IPs for the requested page and build pagination metadata.
 
     Args:
-        results: Full list of result dicts.
+        ips: Full list of validated IPs.
         page: Page number (clamped to minimum 1).
-        page_size: Results per page (clamped to 1–25).
+        page_size: Results per page (clamped to 1–MAX_BATCH_SIZE).
 
     Returns:
-        Dict with "_pagination" metadata and "results" slice.
+        Tuple of (page_ips, pagination_meta).
     """
     page = max(1, page)
-    page_size = max(1, min(25, page_size))
-
-    total_results = len(results)
+    page_size = max(1, min(MAX_BATCH_SIZE, page_size))
+    total_results = len(ips)
     total_pages = math.ceil(total_results / page_size) if total_results > 0 else 0
 
     start = (page - 1) * page_size
     end = start + page_size
-    page_results = results[start:end]
+    page_ips = ips[start:end]
 
-    return {
-        "_pagination": {
-            "total_results": total_results,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": total_pages,
-            "has_next": page < total_pages,
-            "has_previous": page > 1,
-        },
-        "results": page_results,
+    meta: PaginationMeta = {
+        "total_results": total_results,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "has_previous": page > 1,
     }
+    return page_ips, meta

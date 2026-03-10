@@ -1,4 +1,3 @@
-import math
 from typing import NotRequired, TypedDict
 
 import httpx
@@ -6,9 +5,9 @@ from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
 from ipinfo_mcp.cache import CachedResponse, IPCache
-from ipinfo_mcp.client import MAX_BATCH_SIZE, IPinfoClient
+from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.errors import ErrorResponse, handle_api_error, no_token_error
-from ipinfo_mcp.pagination import PaginationMeta
+from ipinfo_mcp.pagination import PaginationMeta, paginate_ips
 from ipinfo_mcp.validation import validate_ips
 
 
@@ -52,15 +51,7 @@ async def ipinfo_lookup(
 
     valid_ips, validation_errors = validate_ips(ips)
 
-    # Paginate first — only fetch what we need for this page
-    page = max(1, page)
-    page_size = max(1, min(MAX_BATCH_SIZE, page_size))
-    total_results = len(valid_ips)
-    total_pages = math.ceil(total_results / page_size) if total_results > 0 else 0
-
-    start = (page - 1) * page_size
-    end = start + page_size
-    page_ips = valid_ips[start:end]
+    page_ips, pagination = paginate_ips(valid_ips, page, page_size)
 
     # Check cache for this page's IPs only
     cached, misses = cache.get_many(namespace, page_ips)
@@ -86,14 +77,7 @@ async def ipinfo_lookup(
     }
 
     output: LookupResult = {
-        "_pagination": {
-            "total_results": total_results,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": total_pages,
-            "has_next": page < total_pages,
-            "has_previous": page > 1,
-        },
+        "_pagination": pagination,
         "_meta": {
             "api_calls_made": api_calls,
             "from_cache": from_cache,
