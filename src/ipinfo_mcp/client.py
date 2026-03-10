@@ -4,6 +4,9 @@ import httpx
 
 from ipinfo_mcp.types import BatchResponse, MeResponse
 
+# Maximum number of IPs the batch endpoint accepts
+MAX_BATCH_SIZE = 1000
+
 
 class IPinfoClient:
     """
