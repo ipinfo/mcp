@@ -5,13 +5,13 @@ from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
 
+from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
-from ipinfo_mcp.tools import register_tools
 
 logger = logging.getLogger(__name__)
 
 
-def _settings() -> dict:
+def _settings() -> dict[str, str | None]:
     return {
         "api_token": os.environ.get("IPINFO_TOKEN"),
         "api_base_url": os.environ.get("IPINFO_API_BASE_URL", "https://api.ipinfo.io"),
@@ -19,18 +19,19 @@ def _settings() -> dict:
 
 
 @asynccontextmanager
-async def lifespan(server: FastMCP) -> AsyncIterator[dict]:
-    """Initialize and clean up the IPinfo API client."""
+async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, IPinfoClient | IPCache]]:
+    """Initialize and clean up the IPinfo API client and cache."""
     settings = _settings()
     async with IPinfoClient(
-        base_url=settings["api_base_url"],
+        base_url=settings["api_base_url"] or "https://api.ipinfo.io",
         token=settings["api_token"],
     ) as client:
+        cache = IPCache()
         logger.info(
             "IPinfo MCP server started (token=%s)",
             "configured" if settings["api_token"] else "anonymous",
         )
-        yield {"client": client}
+        yield {"client": client, "cache": cache}
     logger.info("IPinfo MCP server stopped")
 
 
@@ -39,16 +40,20 @@ mcp = FastMCP(
     instructions=(
         "This server provides IP address intelligence tools powered by IPinfo. "
         "Use ipinfo_lookup to get geolocation and network details for IP addresses. "
-        "Use ipinfo_summarize to analyze the geographic and network distribution of "
-        "a set of IPs. Use ipinfo_map to generate a visual map of IP locations."
+        "Use ipinfo_check_privacy to check if IPs use VPNs, proxies, or Tor. "
+        "Use ipinfo_check_residential_proxy to detect residential proxy usage. "
+        "Use ipinfo_geolocate to get geographic location data. "
+        "Use ipinfo_asn to get network ownership information. "
+        "Use ipinfo_quota to check your API usage and remaining quota."
     ),
     lifespan=lifespan,
 )
 
-register_tools(mcp)
+# Register tools individually
+# (will be added as each tool is implemented)
 
 
-def main():
+def main() -> None:
     transport = os.environ.get("IPINFO_TRANSPORT", "stdio")
     host = os.environ.get("IPINFO_HOST", "0.0.0.0")
     port = int(os.environ.get("IPINFO_PORT", "8000"))

@@ -1,16 +1,25 @@
+from typing import cast
+
 import httpx
+
+from ipinfo_mcp.types import BatchResponse, MeResponse
 
 
 class IPinfoClient:
-    """Async HTTP client for the IPinfo API."""
+    """
+    Async HTTP client for the IPinfo API.
+
+    Uses the unified /batch endpoint
+    (e.g. "lite/8.8.8.8", "1.1.1.1", "resproxy/2.2.2.2").
+    """
 
     def __init__(self, base_url: str, token: str | None = None) -> None:
-        self._base_url = base_url.rstrip("/")
+        self._base_url: str = base_url.rstrip("/")
         self._token = token
         self._http: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> "IPinfoClient":
-        headers = {"Accept": "application/json"}
+        headers: dict[str, str] = {"Accept": "application/json"}
         if self._token:
             headers["Authorization"] = f"Bearer {self._token}"
         self._http = httpx.AsyncClient(
@@ -32,30 +41,45 @@ class IPinfoClient:
             )
         return self._http
 
-    async def lookup(self, ip: str | None = None) -> dict:
-        """Look up a single IP via the Lite endpoint.
+    @property
+    def has_token(self) -> bool:
+        """Whether this client has an API token configured."""
+        return self._token is not None
 
-        If ip is None, looks up the caller's own IP.
+    async def batch(self, keys: list[str]) -> BatchResponse:
         """
-        path = "/lite/me" if ip is None else f"/lite/{ip}"
-        response = await self.http.get(path)
-        response.raise_for_status()
-        return response.json()
+        Send a batch request.
 
-    async def batch_lookup(self, ips: list[str]) -> dict[str, dict]:
-        """Batch lookup of multiple IPs."""
-        response = await self.http.post("/batch", json=ips)
-        response.raise_for_status()
-        return response.json()
+        Keys can be prefixed with the endpoint type:
+        - "lite/8.8.8.8" for lite lookups
+        - "8.8.8.8" for full lookups
+        - "resproxy/8.8.8.8" for residential proxy checks
 
-    async def summarize(self, ips: list[str]) -> dict:
-        """Summarize a set of IPs by country, continent, and ASN."""
-        response = await self.http.post("/tools/summarize-ips", json=ips)
-        response.raise_for_status()
-        return response.json()
+        Response keys match input keys.
+        HTTP errors (403, 429, etc.) are propagated as httpx.HTTPStatusError.
+        """
+        response = await self.http.post("/batch", json=keys)
+        _ = response.raise_for_status()
+        result: BatchResponse = cast(BatchResponse, response.json())
+        return result
 
-    async def create_map(self, ips: list[str]) -> dict:
-        """Create an interactive map for a set of IPs."""
-        response = await self.http.post("/tools/map", json=ips)
-        response.raise_for_status()
-        return response.json()
+    async def me(self) -> MeResponse:
+        """
+        Get account info and quota via GET /me.
+
+        Note: /me only exists on ipinfo.io, not api.ipinfo.io,
+        so this uses a direct request to ipinfo.io.
+        HTTP errors are propagated as httpx.HTTPStatusError.
+        """
+        headers: dict[str, str] = {"Accept": "application/json"}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        async with httpx.AsyncClient(
+            base_url="https://ipinfo.io",
+            headers=headers,
+            timeout=httpx.Timeout(30.0, connect=10.0),
+        ) as http:
+            response = await http.get("/me")
+            _ = response.raise_for_status()
+            result: MeResponse = cast(MeResponse, response.json())
+            return result
