@@ -73,32 +73,22 @@ def validate_ip(ip_str: str) -> str:
     """
     try:
         addr = ipaddress.ip_address(ip_str.strip())
-    except ValueError:
+    except ValueError as err:
         raise ValueError(
             f"'{ip_str}' is not a valid IP address. "
             "Provide a valid IPv4 (e.g., 8.8.8.8) or IPv6 (e.g., 2001:4860:4860::8888) address."
-        )
+        ) from err
 
     if addr.is_private:
-        raise ValueError(
-            f"'{addr}' is a private IP address. Only public IP addresses can be looked up."
-        )
+        raise ValueError(f"'{addr}' is a private IP address. Only public IP addresses can be looked up.")
     if addr.is_loopback:
-        raise ValueError(
-            f"'{addr}' is a loopback address. Only public IP addresses can be looked up."
-        )
+        raise ValueError(f"'{addr}' is a loopback address. Only public IP addresses can be looked up.")
     if addr.is_reserved:
-        raise ValueError(
-            f"'{addr}' is a reserved address. Only public IP addresses can be looked up."
-        )
+        raise ValueError(f"'{addr}' is a reserved address. Only public IP addresses can be looked up.")
     if addr.is_multicast:
-        raise ValueError(
-            f"'{addr}' is a multicast address. Only public IP addresses can be looked up."
-        )
+        raise ValueError(f"'{addr}' is a multicast address. Only public IP addresses can be looked up.")
     if _is_bogon(addr):
-        raise ValueError(
-            f"'{addr}' is a bogon address. Only public IP addresses can be looked up."
-        )
+        raise ValueError(f"'{addr}' is a bogon address. Only public IP addresses can be looked up.")
 
     return str(addr)
 

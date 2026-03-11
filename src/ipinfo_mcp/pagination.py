@@ -13,9 +13,7 @@ class PaginationMeta(TypedDict):
     has_previous: bool
 
 
-def paginate_ips(
-    ips: list[str], page: int, page_size: int
-) -> tuple[list[str], PaginationMeta]:
+def paginate_ips(ips: list[str], page: int, page_size: int) -> tuple[list[str], PaginationMeta]:
     """
     Slice a list of IPs for the requested page and build pagination metadata.
 

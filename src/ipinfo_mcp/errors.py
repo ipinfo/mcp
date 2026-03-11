@@ -26,9 +26,7 @@ def handle_api_error(
 
     if status == 403:
         message = (
-            f"You don't have access to {feature_name}."
-            if feature_name
-            else "You don't have access to this feature."
+            f"You don't have access to {feature_name}." if feature_name else "You don't have access to this feature."
         )
         return ErrorResponse(
             error=True,

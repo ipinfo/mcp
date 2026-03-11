@@ -122,6 +122,4 @@ class MeResponse(TypedDict):
 # e.g. {"lite/8.8.8.8": LiteResponse, "lookup/1.1.1.1": LookupResponse, ...}
 # Since keys can mix types, the batch response is typed as:
 
-BatchResponse = dict[
-    str, LiteResponse | LookupResponse | ResproxyResponse | dict[str, object]
-]
+BatchResponse = dict[str, LiteResponse | LookupResponse | ResproxyResponse | dict[str, object]]

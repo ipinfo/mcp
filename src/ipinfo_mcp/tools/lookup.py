@@ -71,9 +71,7 @@ async def ipinfo_lookup(
     from_cache = len(page_ips) - len(misses)
 
     # Build results dict keyed by IP
-    page_results: dict[str, CachedResponse] = {
-        ip: cached[ip] for ip in page_ips if ip in cached
-    }
+    page_results: dict[str, CachedResponse] = {ip: cached[ip] for ip in page_ips if ip in cached}
 
     output: LookupResult = {
         "_pagination": pagination,

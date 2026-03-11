@@ -50,7 +50,9 @@ venv = ".venv"
 exclude = [".venv", "tests"]
 
 [tool.ruff]
+exclude = [".venv", "tests"]
 target-version = "py311"
+line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]

@@ -39,9 +39,7 @@ class IPinfoClient:
     @property
     def http(self) -> httpx.AsyncClient:
         if self._http is None:
-            raise RuntimeError(
-                "Client not initialized. Use 'async with' context manager."
-            )
+            raise RuntimeError("Client not initialized. Use 'async with' context manager.")
         return self._http
 
     @property

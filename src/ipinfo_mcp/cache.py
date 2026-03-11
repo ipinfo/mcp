@@ -22,9 +22,7 @@ class IPCache:
         """Store data for an IP in a namespace."""
         self._store[(namespace, ip)] = data
 
-    def get_many(
-        self, namespace: str, ips: list[str]
-    ) -> tuple[dict[str, CachedResponse], list[str]]:
+    def get_many(self, namespace: str, ips: list[str]) -> tuple[dict[str, CachedResponse], list[str]]:
         """Look up multiple IPs. Returns (cached_results, cache_misses)."""
         cached: dict[str, CachedResponse] = {}
         misses: list[str] = []
