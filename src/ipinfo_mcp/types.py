@@ -104,6 +104,11 @@ class RequestsInfo(TypedDict):
 class FeatureQuota(TypedDict):
     daily: int
     monthly: int
+    # Feature-specific optional fields
+    result_limit: NotRequired[int]
+    firmographics: NotRequired[bool]
+    org_additional: NotRequired[bool]
+    vpn_provider: NotRequired[bool]
 
 
 class MeResponse(TypedDict):

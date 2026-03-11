@@ -130,4 +130,16 @@ class TestMe:
         assert isinstance(result, dict)
         assert "token" in result
         assert "requests" in result
-        assert isinstance(result["requests"], dict)
+        requests = result["requests"]
+        assert isinstance(requests, dict)
+        assert "day" in requests
+        assert "month" in requests
+        assert "limit" in requests
+        assert "remaining" in requests
+
+        features = result["features"]
+        assert isinstance(features, dict)
+        for name, quota in features.items():
+            assert isinstance(quota, dict)
+            assert "daily" in quota
+            assert "monthly" in quota
