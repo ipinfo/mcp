@@ -7,6 +7,7 @@ from fastmcp import FastMCP
 
 from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
+from ipinfo_mcp.tools.geolocate import register_geolocate
 from ipinfo_mcp.tools.lookup import register_lookup
 from ipinfo_mcp.tools.privacy import register_privacy
 from ipinfo_mcp.tools.resproxy import register_resproxy
@@ -55,6 +56,7 @@ mcp = FastMCP(
 register_lookup(mcp)
 register_privacy(mcp)
 register_resproxy(mcp)
+register_geolocate(mcp)
 
 
 def main() -> None:
