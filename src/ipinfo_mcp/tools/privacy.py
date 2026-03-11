@@ -41,13 +41,12 @@ async def ipinfo_check_privacy(
     ctx: Context | None = None,
 ) -> PrivacyResult | ErrorResponse:
     """
-    Check privacy/anonymity status of IP addresses.
+    Check whether IP addresses are using privacy or anonymity services.
 
-    Args:
-        ips: List of IP addresses to check.
-        page: Page number (minimum 1).
-        page_size: Results per page (1–1000).
-        ctx: FastMCP context with client and cache.
+    Returns privacy flags for each IP: whether it is anonymous, using a VPN, proxy,
+    relay, or Tor, and whether it is an anycast, hosting, mobile, or satellite address.
+
+    Requires a paid API token. Results are paginated.
     """
     assert ctx is not None
     client: IPinfoClient = ctx.lifespan_context["client"]

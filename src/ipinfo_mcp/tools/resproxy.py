@@ -38,13 +38,12 @@ async def ipinfo_check_residential_proxy(
     ctx: Context | None = None,
 ) -> ResproxyResult | ErrorResponse:
     """
-    Check if IP addresses are residential proxies.
+    Check whether IP addresses are known residential proxies.
 
-    Args:
-        ips: List of IP addresses to check.
-        page: Page number (minimum 1).
-        page_size: Results per page (1–1000).
-        ctx: FastMCP context with client and cache.
+    Returns whether each IP is a residential proxy and, if so, the proxy service name,
+    the date it was last seen, and the percentage of days the IP was observed as a proxy.
+
+    Requires a paid API token with residential proxy access. Results are paginated.
     """
     assert ctx is not None
     client: IPinfoClient = ctx.lifespan_context["client"]

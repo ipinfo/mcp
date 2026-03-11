@@ -31,14 +31,13 @@ async def ipinfo_lookup(
     ctx: Context | None = None,
 ) -> LookupResult | ErrorResponse:
     """
-    Look up IP address information.
+    Look up geolocation, network, and metadata for one or more IP addresses.
 
-    Args:
-        ips: List of IP addresses to look up.
-        detailed: If True, use the lookup API (paid); otherwise use lite.
-        page: Page number (minimum 1).
-        page_size: Results per page (1–1000).
-        ctx: FastMCP context with client and cache.
+    By default uses the free lite API which returns country, continent, and ASN info.
+    Set detailed=True to use the paid lookup API which adds city-level geolocation,
+    privacy flags (VPN, proxy, Tor, hosting, anycast), and richer AS data.
+
+    Results are paginated. Use page and page_size to control which slice is returned.
     """
     assert ctx is not None
     client: IPinfoClient = ctx.lifespan_context["client"]
