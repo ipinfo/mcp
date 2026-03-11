@@ -26,15 +26,15 @@ def handle_api_error(
 
     if status == 403:
         message = (
-            f"Your token does not have access to {feature_name}."
+            f"You don't have access to {feature_name}."
             if feature_name
-            else "Your token does not have access to this endpoint."
+            else "You don't have access to this feature."
         )
         return ErrorResponse(
             error=True,
             code="ACCESS_DENIED",
             message=message,
-            suggestion="Upgrade at https://ipinfo.io/pricing",
+            suggestion="Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
         )
 
     if status == 429:
@@ -42,7 +42,7 @@ def handle_api_error(
             error=True,
             code="RATE_LIMITED",
             message="Rate limit exceeded.",
-            suggestion="Upgrade at https://ipinfo.io/pricing",
+            suggestion="Tell the user they can upgrade their tier at https://ipinfo.io/pricing",
         )
 
     return ErrorResponse(
@@ -58,5 +58,5 @@ def no_token_error() -> ErrorResponse:
         error=True,
         code="NO_TOKEN",
         message="No API token configured.",
-        suggestion="Set IPINFO_TOKEN. Free token at https://ipinfo.io/signup",
+        suggestion="The user didn't set IPINFO_TOKEN. They can get a free token at https://ipinfo.io/signup",
     )
