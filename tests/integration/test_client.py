@@ -77,6 +77,7 @@ class TestBatchLookup:
         assert "asn" in as_data
         assert "name" in as_data
         assert "type" in as_data
+        assert "last_changed" in as_data
 
 
 class TestBatchResproxy:
