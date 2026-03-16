@@ -2,8 +2,13 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import cast
 
+import uvicorn
 from fastmcp import FastMCP
+from starlette.responses import HTMLResponse, JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
@@ -25,7 +30,7 @@ def _settings() -> dict[str, str | None]:
 
 
 @asynccontextmanager
-async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, IPinfoClient | IPCache]]:
+async def lifespan(_: FastMCP) -> AsyncIterator[dict[str, IPinfoClient | IPCache]]:
     """Initialize and clean up the IPinfo API client and cache."""
     settings = _settings()
     async with IPinfoClient(
@@ -62,6 +67,44 @@ register_geolocate(mcp)
 register_asn(mcp)
 register_quota(mcp)
 
+_LANDING_HTML = (Path(__file__).parent / "landing.html").read_text()
+
+
+class LandingPageMiddleware:
+    """Intercept browser GET / requests and serve the landing page.
+
+    MCP clients use POST or GET with Accept: text/event-stream,
+    so a plain GET with Accept: text/html is always a browser.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope["method"] == "GET":
+            path = cast(str, scope["path"])
+            if path in ("/.healthz/is-ready", "/.healthz/is-alive"):
+                response = JSONResponse({"status": "ok"})
+                await response(scope, receive, send)
+                return
+            if path == "/":
+                headers = cast(dict[bytes, bytes], scope.get("headers", {}))
+                accept = headers.get(b"accept", b"").decode()
+                if "text/html" in accept or "text/event-stream" not in accept:
+                    response = HTMLResponse(_LANDING_HTML)
+                    await response(scope, receive, send)
+                    return
+        await self.app(scope, receive, send)
+
+
+def create_app() -> ASGIApp:
+    """Create the ASGI app: landing page on GET /, MCP on POST /."""
+    mcp_app = mcp.http_app(path="/")
+    return LandingPageMiddleware(mcp_app)
+
+
+app = create_app()
+
 
 def main() -> None:
     transport = os.environ.get("IPINFO_TRANSPORT", "stdio")
@@ -69,6 +112,6 @@ def main() -> None:
     port = int(os.environ.get("IPINFO_PORT", "8000"))
 
     if transport == "http":
-        mcp.run(transport="http", host=host, port=port)
+        uvicorn.run(app, host=host, port=int(port))
     else:
         mcp.run()
