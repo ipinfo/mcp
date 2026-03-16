@@ -88,7 +88,7 @@ class LandingPageMiddleware:
                 await response(scope, receive, send)
                 return
             if path == "/":
-                headers = cast(dict[bytes, bytes], scope.get("headers", {}))
+                headers = dict(cast(list[tuple[bytes, bytes]], scope.get("headers", [])))
                 accept = headers.get(b"accept", b"").decode()
                 if "text/html" in accept or "text/event-stream" not in accept:
                     response = HTMLResponse(_LANDING_HTML)
