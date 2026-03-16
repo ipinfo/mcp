@@ -1,9 +1,21 @@
-name: Build and push Docker image
+name: "MCP Server: Build and Deploy"
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      deploy_action:
+        description: "Deploy action"
+        required: false
+        default: "build only"
+        type: choice
+        options:
+          - "build only"
+          - "build + deploy"
 
 jobs:
   build:
@@ -11,7 +23,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
-
+    outputs:
+      tag: ${{ steps.get_tag.outputs.tag }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -19,9 +32,14 @@ jobs:
       - name: Setup Docker buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Extract version from tag
-        id: get_version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - name: Determine image tag
+        id: get_tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=$(git rev-parse --short=7 HEAD)" >> $GITHUB_OUTPUT
+          fi
 
       - id: auth
         name: Authenticate to Google Cloud
@@ -45,5 +63,26 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ secrets.GCP_REGISTRY }}/mcp:${{ steps.get_version.outputs.version }}
+            ${{ secrets.GCP_REGISTRY }}/mcp:${{ steps.get_tag.outputs.tag }}
             ${{ secrets.GCP_REGISTRY }}/mcp:latest
+
+  deploy:
+    uses: ipinfo/infra/.github/workflows/deploy-web-component.yaml@main
+    needs: build
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_action == 'build + deploy')
+    concurrency:
+      group: "ipinfo/infra-deploy-mcp-server-production"
+      cancel-in-progress: false
+    with:
+      tag: ${{ needs.build.outputs.tag }}
+      environment: "production"
+      url: "https://mcp.ipinfo.io"
+      helm_values_path: "kubernetes/kustomizations/apps/web/mcp-server/prod-v2/kustomization.yaml"
+      property_path: "images[0].newTag"
+      branch: "main"
+      deployment_mode: "direct"
+      verify_url: "https://mcp.ipinfo.io/.healthz/is-ready"
+    secrets:
+      deploy-key: "${{ secrets.INFRA_REPO_DEPLOY_KEY }}"
