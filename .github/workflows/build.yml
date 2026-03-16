@@ -45,5 +45,5 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ GCP_REGISTRY }}/mcp:${{ steps.get_version.outputs.version }}
-            ${{ GCP_REGISTRY }}/mcp:latest
+            ${{ secrets.GCP_REGISTRY }}/mcp:${{ steps.get_version.outputs.version }}
+            ${{ secrets.GCP_REGISTRY }}/mcp:latest
