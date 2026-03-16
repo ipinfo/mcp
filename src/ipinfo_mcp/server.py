@@ -108,8 +108,8 @@ app = create_app()
 
 def main() -> None:
     transport = os.environ.get("IPINFO_TRANSPORT", "stdio")
-    host = os.environ.get("IPINFO_HOST", "0.0.0.0")
-    port = int(os.environ.get("IPINFO_PORT", "8000"))
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", "8000"))
 
     if transport == "http":
         uvicorn.run(app, host=host, port=int(port))
