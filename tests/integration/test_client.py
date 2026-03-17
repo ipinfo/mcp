@@ -18,14 +18,14 @@ def token() -> str:
 
 
 @pytest.fixture
-async def client(token: str) -> IPinfoClient:
-    async with IPinfoClient(base_url=BASE_URL, token=token) as c:
+async def client() -> IPinfoClient:
+    async with IPinfoClient(base_url=BASE_URL) as c:
         yield c
 
 
 class TestBatchLite:
-    async def test_lite_response_structure(self, client: IPinfoClient) -> None:
-        result = await client.batch(["lite/8.8.8.8"])
+    async def test_lite_response_structure(self, client: IPinfoClient, token: str) -> None:
+        result = await client.batch(["lite/8.8.8.8"], token=token)
 
         assert "lite/8.8.8.8" in result
         data = result["lite/8.8.8.8"]
@@ -41,8 +41,8 @@ class TestBatchLite:
         assert "as_name" in data
         assert "as_domain" in data
 
-    async def test_lite_multiple_ips(self, client: IPinfoClient) -> None:
-        result = await client.batch(["lite/8.8.8.8", "lite/1.1.1.1"])
+    async def test_lite_multiple_ips(self, client: IPinfoClient, token: str) -> None:
+        result = await client.batch(["lite/8.8.8.8", "lite/1.1.1.1"], token=token)
 
         assert "lite/8.8.8.8" in result
         assert "lite/1.1.1.1" in result
@@ -52,8 +52,8 @@ class TestBatchLite:
 
 
 class TestBatchLookup:
-    async def test_lookup_response_structure(self, client: IPinfoClient) -> None:
-        result = await client.batch(["lookup/8.8.8.8"])
+    async def test_lookup_response_structure(self, client: IPinfoClient, token: str) -> None:
+        result = await client.batch(["lookup/8.8.8.8"], token=token)
 
         assert "lookup/8.8.8.8" in result
         data = result["lookup/8.8.8.8"]
@@ -81,9 +81,9 @@ class TestBatchLookup:
 
 
 class TestBatchResproxy:
-    async def test_resproxy_known_non_proxy(self, client: IPinfoClient) -> None:
+    async def test_resproxy_known_non_proxy(self, client: IPinfoClient, token: str) -> None:
         """8.8.8.8 is Google DNS, not a residential proxy — expect empty response."""
-        result = await client.batch(["resproxy/8.8.8.8"])
+        result = await client.batch(["resproxy/8.8.8.8"], token=token)
 
         assert "resproxy/8.8.8.8" in result
         data = result["resproxy/8.8.8.8"]
@@ -91,14 +91,14 @@ class TestBatchResproxy:
         assert isinstance(data, dict)
 
     async def test_resproxy_response_fields_when_proxy(
-        self, client: IPinfoClient
+        self, client: IPinfoClient, token: str
     ) -> None:
         """If the IP is a known proxy, verify field structure.
 
         We use a known residential proxy IP. If it's no longer a proxy,
         we just verify we get a dict back.
         """
-        result = await client.batch(["resproxy/175.107.211.204"])
+        result = await client.batch(["resproxy/175.107.211.204"], token=token)
 
         assert "resproxy/175.107.211.204" in result
         data = result["resproxy/175.107.211.204"]
@@ -113,9 +113,9 @@ class TestBatchResproxy:
 
 
 class TestBatchMixed:
-    async def test_mixed_prefixes_in_single_call(self, client: IPinfoClient) -> None:
+    async def test_mixed_prefixes_in_single_call(self, client: IPinfoClient, token: str) -> None:
         result = await client.batch(
-            ["lite/8.8.8.8", "lookup/1.1.1.1", "resproxy/8.8.8.8"]
+            ["lite/8.8.8.8", "lookup/1.1.1.1", "resproxy/8.8.8.8"], token=token
         )
 
         assert "lite/8.8.8.8" in result
@@ -124,8 +124,8 @@ class TestBatchMixed:
 
 
 class TestMe:
-    async def test_me_response_structure(self, client: IPinfoClient) -> None:
-        result = await client.me()
+    async def test_me_response_structure(self, client: IPinfoClient, token: str) -> None:
+        result = await client.me(token=token)
 
         assert isinstance(result, dict)
         assert "token" in result

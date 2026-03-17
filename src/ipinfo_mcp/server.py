@@ -3,7 +3,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import cast
+from typing import TypedDict, cast
 
 import uvicorn
 from fastmcp import FastMCP
@@ -22,27 +22,35 @@ from ipinfo_mcp.tools.resproxy import register_resproxy
 logger = logging.getLogger(__name__)
 
 
-def _settings() -> dict[str, str | None]:
+class Settings(TypedDict):
+    api_token: str | None
+    api_base_url: str
+
+
+def _settings() -> Settings:
     return {
         "api_token": os.environ.get("IPINFO_TOKEN"),
         "api_base_url": os.environ.get("IPINFO_API_BASE_URL", "https://api.ipinfo.io"),
     }
 
 
+class ContextData(TypedDict):
+    client: IPinfoClient
+    cache: IPCache
+    api_token: str | None
+
+
 @asynccontextmanager
-async def lifespan(_: FastMCP) -> AsyncIterator[dict[str, IPinfoClient | IPCache]]:
+async def lifespan(_: FastMCP) -> AsyncIterator[ContextData]:
     """Initialize and clean up the IPinfo API client and cache."""
     settings = _settings()
-    async with IPinfoClient(
-        base_url=settings["api_base_url"] or "https://api.ipinfo.io",
-        token=settings["api_token"],
-    ) as client:
+    async with IPinfoClient(base_url=settings["api_base_url"]) as client:
         cache = IPCache()
         logger.info(
             "IPinfo MCP server started (token=%s)",
             "configured" if settings["api_token"] else "anonymous",
         )
-        yield {"client": client, "cache": cache}
+        yield {"client": client, "cache": cache, "api_token": settings["api_token"]}
     logger.info("IPinfo MCP server stopped")
 
 

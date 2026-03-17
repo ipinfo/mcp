@@ -52,7 +52,7 @@ LOOKUP_8888: LookupResponse = {
 
 @pytest.fixture
 async def client(httpx_mock: HTTPXMock) -> IPinfoClient:
-    async with IPinfoClient(base_url=BASE_URL, token="test_token") as c:
+    async with IPinfoClient(base_url=BASE_URL) as c:
         yield c
 
 
@@ -137,8 +137,8 @@ class TestAsnErrors:
     async def test_no_token_returns_error(
         self, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
-        async with IPinfoClient(base_url=BASE_URL, token=None) as no_token_client:
-            ctx = make_context(no_token_client, cache)
+        async with IPinfoClient(base_url=BASE_URL) as no_token_client:
+            ctx = make_context(no_token_client, cache, api_token=None)
             result = await ipinfo_asn(
                 ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
             )

@@ -9,7 +9,7 @@ BASE_URL = "https://api.ipinfo.io"
 
 @pytest.fixture
 async def client() -> IPinfoClient:
-    async with IPinfoClient(base_url=BASE_URL, token="test_token") as c:
+    async with IPinfoClient(base_url=BASE_URL) as c:
         yield c
 
 
@@ -24,7 +24,7 @@ class TestBatch:
                 "lite/8.8.8.8": {"ip": "8.8.8.8", "country": "US"},
             },
         )
-        result = await client.batch(["lite/8.8.8.8"])
+        result = await client.batch(["lite/8.8.8.8"], token="test_token")
         assert "lite/8.8.8.8" in result
         assert result["lite/8.8.8.8"]["ip"] == "8.8.8.8"
 
@@ -38,7 +38,7 @@ class TestBatch:
                 "lookup/8.8.8.8": {"ip": "8.8.8.8", "city": "Mountain View"},
             },
         )
-        result = await client.batch(["lookup/8.8.8.8"])
+        result = await client.batch(["lookup/8.8.8.8"], token="test_token")
         assert "lookup/8.8.8.8" in result
 
     async def test_batch_with_resproxy_prefix(
@@ -51,7 +51,7 @@ class TestBatch:
                 "resproxy/8.8.8.8": {},
             },
         )
-        result = await client.batch(["resproxy/8.8.8.8"])
+        result = await client.batch(["resproxy/8.8.8.8"], token="test_token")
         assert result["resproxy/8.8.8.8"] == {}
 
     async def test_batch_mixed_prefixes(
@@ -67,7 +67,7 @@ class TestBatch:
             },
         )
         result = await client.batch(
-            ["lite/8.8.8.8", "lookup/1.1.1.1", "resproxy/2.2.2.2"]
+            ["lite/8.8.8.8", "lookup/1.1.1.1", "resproxy/2.2.2.2"], token="test_token"
         )
         assert len(result) == 3
 
@@ -79,7 +79,7 @@ class TestBatch:
             method="POST",
             json={},
         )
-        await client.batch(["lite/8.8.8.8", "lookup/1.1.1.1"])
+        await client.batch(["lite/8.8.8.8", "lookup/1.1.1.1"], token="test_token")
 
         request = httpx_mock.get_request()
         assert request is not None
@@ -93,7 +93,7 @@ class TestBatch:
             method="POST",
             json={},
         )
-        await client.batch(["lite/8.8.8.8"])
+        await client.batch(["lite/8.8.8.8"], token="test_token")
 
         request = httpx_mock.get_request()
         assert request is not None
@@ -108,7 +108,7 @@ class TestBatch:
             status_code=403,
         )
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
-            await client.batch(["lookup/8.8.8.8"])
+            await client.batch(["lookup/8.8.8.8"], token="test_token")
         assert exc_info.value.response.status_code == 403
 
     async def test_batch_propagates_429(
@@ -120,7 +120,7 @@ class TestBatch:
             status_code=429,
         )
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
-            await client.batch(["lite/8.8.8.8"])
+            await client.batch(["lite/8.8.8.8"], token="test_token")
         assert exc_info.value.response.status_code == 429
 
 
@@ -139,7 +139,7 @@ class TestMe:
                 "requests": {"month": 100, "limit": 50000},
             },
         )
-        result = await client.me()
+        result = await client.me(token="test_token")
         assert "token" in result
         assert "requests" in result
 
@@ -151,7 +151,7 @@ class TestMe:
             method="GET",
             json={},
         )
-        await client.me()
+        await client.me(token="test_token")
 
         request = httpx_mock.get_request()
         assert request is not None
@@ -160,7 +160,7 @@ class TestMe:
 
 class TestNoToken:
     async def test_no_auth_header_without_token(self, httpx_mock: HTTPXMock) -> None:
-        async with IPinfoClient(base_url=BASE_URL, token=None) as client:
+        async with IPinfoClient(base_url=BASE_URL) as client:
             httpx_mock.add_response(
                 url=f"{BASE_URL}/batch",
                 method="POST",

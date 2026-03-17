@@ -4,6 +4,7 @@ import httpx
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
+from ipinfo_mcp.auth import get_request_token
 from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.errors import ErrorResponse, handle_api_error, no_token_error
@@ -51,8 +52,9 @@ async def ipinfo_check_privacy(
     assert ctx is not None
     client: IPinfoClient = ctx.lifespan_context["client"]
     cache: IPCache = ctx.lifespan_context["cache"]
+    token = get_request_token(ctx)
 
-    if not client.has_token:
+    if not token:
         return no_token_error()
 
     namespace = "lookup"
@@ -68,7 +70,7 @@ async def ipinfo_check_privacy(
     if misses:
         keys = [f"{namespace}/{ip}" for ip in misses]
         try:
-            fetched = await client.batch(keys)
+            fetched = await client.batch(keys, token=token)
             api_calls = 1
             for key, data in fetched.items():
                 ip = key.split("/", 1)[1]
