@@ -1363,8 +1363,13 @@
                     {
                         mcpServers: {
                             ipinfo: {
-                                url: url,
-                                headers: { Authorization: "Bearer " + tok },
+                                command: "npx",
+                                args: [
+                                    "mcp-remote",
+                                    "https://mcp.ipinfo.io/",
+                                    "--header",
+                                    "Authorization: Bearer " + tok,
+                                ],
                             },
                         },
                     },
