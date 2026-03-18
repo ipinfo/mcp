@@ -107,7 +107,10 @@ class LandingPageMiddleware:
 
 def create_app() -> ASGIApp:
     """Create the ASGI app: landing page on GET /, MCP on POST /."""
-    mcp_app = mcp.http_app(path="/")
+    mcp_app = mcp.http_app(
+        path="/",
+        stateless_http=True,
+    )
     return LandingPageMiddleware(mcp_app)
 
 
