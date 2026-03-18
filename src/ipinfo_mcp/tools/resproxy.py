@@ -1,3 +1,4 @@
+import logging
 from typing import NotRequired, TypedDict, cast
 
 import httpx
@@ -10,6 +11,8 @@ from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.errors import ErrorResponse, handle_api_error, no_token_error
 from ipinfo_mcp.pagination import PaginationMeta, paginate_ips
 from ipinfo_mcp.validation import validate_ips
+
+logger = logging.getLogger(__name__)
 
 
 class ResproxyInfo(TypedDict):
@@ -51,6 +54,8 @@ async def ipinfo_check_residential_proxy(
     cache: IPCache = ctx.lifespan_context["cache"]
     token = get_request_token(ctx)
 
+    logger.info("ipinfo_check_residential_proxy ips=%d has_token=%s", len(ips), token is not None)
+
     if not token:
         return no_token_error()
 
@@ -73,6 +78,7 @@ async def ipinfo_check_residential_proxy(
                 cache.put(namespace, ip, data)
                 cached[ip] = data
         except httpx.HTTPStatusError as exc:
+            logger.warning("ipinfo_check_residential_proxy api_error status=%d", exc.response.status_code)
             return handle_api_error(exc, feature_name="residential proxy detection")
 
     from_cache = len(page_ips) - len(misses)

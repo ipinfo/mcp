@@ -1,3 +1,4 @@
+import logging
 from typing import NotRequired, TypedDict, cast
 
 import httpx
@@ -11,6 +12,8 @@ from ipinfo_mcp.errors import ErrorResponse, handle_api_error, no_token_error
 from ipinfo_mcp.pagination import PaginationMeta, paginate_ips
 from ipinfo_mcp.types import GeoObject
 from ipinfo_mcp.validation import validate_ips
+
+logger = logging.getLogger(__name__)
 
 
 class GeoInfo(TypedDict):
@@ -61,6 +64,8 @@ async def ipinfo_geolocate(
     cache: IPCache = ctx.lifespan_context["cache"]
     token = get_request_token(ctx)
 
+    logger.info("ipinfo_geolocate ips=%d detailed=%s has_token=%s", len(ips), detailed, token is not None)
+
     if not token:
         return no_token_error()
 
@@ -83,6 +88,7 @@ async def ipinfo_geolocate(
                 cache.put(namespace, ip, data)
                 cached[ip] = data
         except httpx.HTTPStatusError as exc:
+            logger.warning("ipinfo_geolocate api_error status=%d", exc.response.status_code)
             return handle_api_error(exc, feature_name="geolocation")
 
     from_cache = len(page_ips) - len(misses)

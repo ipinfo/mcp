@@ -1,3 +1,5 @@
+import logging
+
 import httpx
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
@@ -6,6 +8,8 @@ from ipinfo_mcp.auth import get_request_token
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.errors import ErrorResponse, handle_api_error, no_token_error
 from ipinfo_mcp.types import MeResponse
+
+logger = logging.getLogger(__name__)
 
 
 async def ipinfo_quota(
@@ -21,12 +25,15 @@ async def ipinfo_quota(
     client: IPinfoClient = ctx.lifespan_context["client"]
     token = get_request_token(ctx)
 
+    logger.info("ipinfo_quota has_token=%s", token is not None)
+
     if not token:
         return no_token_error()
 
     try:
         return await client.me(token=token)
     except httpx.HTTPStatusError as exc:
+        logger.warning("ipinfo_quota api_error status=%d", exc.response.status_code)
         return handle_api_error(exc, feature_name="quota")
 
 

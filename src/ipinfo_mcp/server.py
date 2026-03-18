@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,6 +13,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
+from ipinfo_mcp.logging import setup_logging
 from ipinfo_mcp.tools.asn import register_asn
 from ipinfo_mcp.tools.geolocate import register_geolocate
 from ipinfo_mcp.tools.lookup import register_lookup
@@ -122,7 +124,12 @@ def main() -> None:
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8000"))
 
+    # We don't want to log to stdout when running in stdio mode as that
+    # would pollute the MCP output and cause communication issues with the LLM
+    stream = sys.stdout if transport == "http" else sys.stderr
+    setup_logging(stream=stream)
+
     if transport == "http":
-        uvicorn.run(app, host=host, port=int(port))
+        uvicorn.run(app, host=host, port=int(port), log_config=None)
     else:
         mcp.run()

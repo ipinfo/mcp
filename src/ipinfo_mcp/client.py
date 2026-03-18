@@ -1,8 +1,11 @@
+import logging
 from typing import cast
 
 import httpx
 
 from ipinfo_mcp.types import BatchResponse, MeResponse
+
+logger = logging.getLogger(__name__)
 
 # Maximum number of IPs the batch endpoint accepts
 MAX_BATCH_SIZE = 1000
@@ -53,6 +56,7 @@ class IPinfoClient:
         headers: dict[str, str] = {}
         if token:
             headers["Authorization"] = f"Bearer {token}"
+        logger.info("POST /batch keys=%d", len(keys))
         response = await self.http.post("/batch", json=keys, headers=headers)
         _ = response.raise_for_status()
         result: BatchResponse = cast(BatchResponse, response.json())
@@ -69,6 +73,7 @@ class IPinfoClient:
         headers: dict[str, str] = {"Accept": "application/json"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
+        logger.info("GET /me")
         async with httpx.AsyncClient(
             base_url="https://ipinfo.io",
             headers=headers,
