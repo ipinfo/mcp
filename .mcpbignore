@@ -1,0 +1,11 @@
+.claude
+.github
+.pytest_cache
+.ruff_cache
+.venv
+tests
+.dockerignore
+.env
+.env.example
+.gitignore
+Dockerfile

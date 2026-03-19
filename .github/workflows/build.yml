@@ -18,6 +18,29 @@ on:
           - "build + deploy"
 
 jobs:
+  mcpb:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build .mcpb
+        run: npx @anthropic-ai/mcpb pack
+
+      - name: Upload .mcpb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipinfo-mcp-server.mcpb
+          path: "*.mcpb"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: gh release create "${{ github.ref_name }}" *.mcpb --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   build:
     runs-on: ubuntu-latest
     permissions:
