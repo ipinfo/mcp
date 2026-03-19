@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.4",
+  "name": "ipinfo-mcp-server",
+  "display_name": "IPinfo",
+  "version": "0.1.0",
+  "description": "IP address intelligence tools: geolocation, ASN, privacy detection, residential proxy checks, and more.",
+  "author": {
+    "name": "IPinfo",
+    "url": "https://ipinfo.io"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "src/ipinfo_mcp/__main__.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "ipinfo-mcp-server"]
+    }
+  },
+  "user_config": {
+    "IPINFO_TOKEN": {
+      "type": "string",
+      "title": "API Token",
+      "description": "Your IPinfo API token. Get a free one at https://ipinfo.io/signup",
+      "required": true,
+      "sensitive": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "python": ">=3.14"
+    }
+  },
+  "icons": [
+    {
+      "src": "assets/logo-light.png",
+      "size": "258x328",
+      "theme": "light"
+    },
+    {
+      "src": "assets/logo-dark.png",
+      "size": "258x328",
+      "theme": "dark"
+    }
+  ],
+  "keywords": ["ipinfo", "ip", "geolocation", "asn", "privacy", "vpn", "proxy"],
+  "license": "Apache-2.0",
+  "homepage": "https://ipinfo.io"
+}
