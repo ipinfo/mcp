@@ -48,6 +48,11 @@ async def ipinfo_check_residential_proxy(
     the date it was last seen, and the percentage of days the IP was observed as a proxy.
 
     Requires a paid API token with residential proxy access. Results are paginated.
+
+    Results are cached in memory for the session, so repeat checks of the same IP
+    are served from cache without consuming API quota. You do not need to maintain
+    your own cache or deduplicate IPs before calling this tool. The _meta field
+    reports api_calls_made and from_cache counts.
     """
     assert ctx is not None
     client: IPinfoClient = ctx.lifespan_context["client"]

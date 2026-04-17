@@ -65,7 +65,12 @@ mcp = FastMCP(
         "Use ipinfo_check_residential_proxy to detect residential proxy usage. "
         "Use ipinfo_geolocate to get geographic location data. "
         "Use ipinfo_asn to get network ownership information. "
-        "Use ipinfo_quota to check your API usage and remaining quota."
+        "Use ipinfo_quota to check your API usage and remaining quota. "
+        "This server maintains an in-memory cache of IP lookup results for the "
+        "lifetime of the session, so you do not need to keep your own cache or "
+        "deduplicate IPs before calling tools: repeat lookups of the same IP are "
+        "served from cache and do not consume API quota. The _meta field on each "
+        "response reports how many results came from cache vs. the API."
     ),
     lifespan=lifespan,
 )

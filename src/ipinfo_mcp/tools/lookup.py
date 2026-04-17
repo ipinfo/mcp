@@ -42,6 +42,11 @@ async def ipinfo_lookup(
     privacy flags (VPN, proxy, Tor, hosting, anycast), and richer AS data.
 
     Results are paginated. Use page and page_size to control which slice is returned.
+
+    Results are cached in memory for the session, so repeat lookups of the same IP
+    are served from cache without consuming API quota. You do not need to maintain
+    your own cache or deduplicate IPs before calling this tool. The _meta field
+    reports api_calls_made and from_cache counts.
     """
     assert ctx is not None
     client: IPinfoClient = ctx.lifespan_context["client"]

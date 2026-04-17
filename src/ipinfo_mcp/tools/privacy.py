@@ -51,6 +51,11 @@ async def ipinfo_check_privacy(
     relay, or Tor, and whether it is an anycast, hosting, mobile, or satellite address.
 
     Requires a paid API token. Results are paginated.
+
+    Results are cached in memory for the session, so repeat checks of the same IP
+    are served from cache without consuming API quota. You do not need to maintain
+    your own cache or deduplicate IPs before calling this tool. The _meta field
+    reports api_calls_made and from_cache counts.
     """
     assert ctx is not None
     client: IPinfoClient = ctx.lifespan_context["client"]
