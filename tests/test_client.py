@@ -2,7 +2,7 @@ import httpx
 import pytest
 from pytest_httpx import HTTPXMock
 
-from ipinfo_mcp.client import IPinfoClient
+from ipinfo_mcp.client import USER_AGENT, IPinfoClient
 
 BASE_URL = "https://api.ipinfo.io"
 
@@ -99,6 +99,21 @@ class TestBatch:
         assert request is not None
         assert request.headers["Authorization"] == "Bearer test_token"
 
+    async def test_batch_includes_user_agent_header(
+        self, client: IPinfoClient, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/batch",
+            method="POST",
+            json={},
+        )
+        await client.batch(["lite/8.8.8.8"], token="test_token")
+
+        request = httpx_mock.get_request()
+        assert request is not None
+        assert request.headers["User-Agent"] == USER_AGENT
+        assert request.headers["User-Agent"].startswith("IPinfoClient/MCP/")
+
     async def test_batch_propagates_403(
         self, client: IPinfoClient, httpx_mock: HTTPXMock
     ) -> None:
@@ -156,6 +171,21 @@ class TestMe:
         request = httpx_mock.get_request()
         assert request is not None
         assert request.headers["Authorization"] == "Bearer test_token"
+
+    async def test_me_includes_user_agent_header(
+        self, client: IPinfoClient, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url=f"{ME_URL}/me",
+            method="GET",
+            json={},
+        )
+        await client.me(token="test_token")
+
+        request = httpx_mock.get_request()
+        assert request is not None
+        assert request.headers["User-Agent"] == USER_AGENT
+        assert request.headers["User-Agent"].startswith("IPinfoClient/MCP/")
 
 
 class TestNoToken:

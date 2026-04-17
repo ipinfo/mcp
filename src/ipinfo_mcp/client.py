@@ -1,4 +1,5 @@
 import logging
+from importlib.metadata import version
 from typing import cast
 
 import httpx
@@ -9,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 # Maximum number of IPs the batch endpoint accepts
 MAX_BATCH_SIZE = 1000
+
+USER_AGENT = f"IPinfoClient/MCP/{version('ipinfo-mcp-server')}"
 
 
 class IPinfoClient:
@@ -26,7 +29,7 @@ class IPinfoClient:
     async def __aenter__(self) -> "IPinfoClient":
         self._http = httpx.AsyncClient(
             base_url=self._base_url,
-            headers={"Accept": "application/json"},
+            headers={"Accept": "application/json", "User-Agent": USER_AGENT},
             timeout=httpx.Timeout(30.0, connect=10.0),
         )
         return self
@@ -70,7 +73,7 @@ class IPinfoClient:
         so this uses a direct request to ipinfo.io.
         HTTP errors are propagated as httpx.HTTPStatusError.
         """
-        headers: dict[str, str] = {"Accept": "application/json"}
+        headers: dict[str, str] = {"Accept": "application/json", "User-Agent": USER_AGENT}
         if token:
             headers["Authorization"] = f"Bearer {token}"
         logger.info("GET /me")
