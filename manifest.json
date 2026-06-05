@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "ipinfo-mcp-server",
   "display_name": "IPinfo",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "IP address intelligence tools: geolocation, ASN, privacy detection, residential proxy checks, and more.",
   "author": {
     "name": "IPinfo",
