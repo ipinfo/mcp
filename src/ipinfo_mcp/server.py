@@ -27,12 +27,14 @@ logger = logging.getLogger(__name__)
 class Settings(TypedDict):
     api_token: str | None
     api_base_url: str
+    legacy_base_url: str
 
 
 def _settings() -> Settings:
     return {
         "api_token": os.environ.get("IPINFO_TOKEN"),
         "api_base_url": os.environ.get("IPINFO_API_BASE_URL", "https://api.ipinfo.io"),
+        "legacy_base_url": os.environ.get("IPINFO_LEGACY_BASE_URL", "https://ipinfo.io"),
     }
 
 
@@ -46,7 +48,10 @@ class ContextData(TypedDict):
 async def lifespan(_: FastMCP) -> AsyncIterator[ContextData]:
     """Initialize and clean up the IPinfo API client and cache."""
     settings = _settings()
-    async with IPinfoClient(base_url=settings["api_base_url"]) as client:
+    async with IPinfoClient(
+        base_url=settings["api_base_url"],
+        legacy_base_url=settings["legacy_base_url"],
+    ) as client:
         cache = IPCache()
         logger.info(
             "IPinfo MCP server started (token=%s)",

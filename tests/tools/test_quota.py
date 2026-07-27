@@ -9,6 +9,7 @@ from tests.conftest import make_context
 
 ME_URL = "https://ipinfo.io/me"
 BASE_URL = "https://api.ipinfo.io"
+LEGACY_BASE_URL = "https://ipinfo.io"
 
 ME_RESPONSE: MeResponse = {
     "token": "abc123",
@@ -33,7 +34,7 @@ ME_RESPONSE: MeResponse = {
 
 @pytest.fixture
 async def client(httpx_mock: HTTPXMock) -> IPinfoClient:
-    async with IPinfoClient(base_url=BASE_URL) as c:
+    async with IPinfoClient(base_url=BASE_URL, legacy_base_url=LEGACY_BASE_URL) as c:
         yield c
 
 
@@ -80,7 +81,7 @@ class TestQuotaErrors:
     async def test_no_token_returns_error(
         self, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
-        async with IPinfoClient(base_url=BASE_URL) as no_token_client:
+        async with IPinfoClient(base_url=BASE_URL, legacy_base_url=LEGACY_BASE_URL) as no_token_client:
             ctx = make_context(no_token_client, cache, api_token=None)
             result = await ipinfo_quota(ctx=ctx)
 

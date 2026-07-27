@@ -5,11 +5,12 @@ from pytest_httpx import HTTPXMock
 from ipinfo_mcp.client import USER_AGENT, IPinfoClient
 
 BASE_URL = "https://api.ipinfo.io"
+LEGACY_BASE_URL = "https://ipinfo.io"
 
 
 @pytest.fixture
 async def client() -> IPinfoClient:
-    async with IPinfoClient(base_url=BASE_URL) as c:
+    async with IPinfoClient(base_url=BASE_URL, legacy_base_url=LEGACY_BASE_URL) as c:
         yield c
 
 
@@ -190,7 +191,7 @@ class TestMe:
 
 class TestNoToken:
     async def test_no_auth_header_without_token(self, httpx_mock: HTTPXMock) -> None:
-        async with IPinfoClient(base_url=BASE_URL) as client:
+        async with IPinfoClient(base_url=BASE_URL, legacy_base_url=LEGACY_BASE_URL) as client:
             httpx_mock.add_response(
                 url=f"{BASE_URL}/batch",
                 method="POST",

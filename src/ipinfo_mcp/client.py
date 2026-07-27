@@ -22,8 +22,9 @@ class IPinfoClient:
     (e.g. "lite/8.8.8.8", "1.1.1.1", "resproxy/2.2.2.2").
     """
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, legacy_base_url: str) -> None:
         self._base_url: str = base_url.rstrip("/")
+        self._legacy_base_url: str = legacy_base_url.rstrip("/")
         self._http: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> "IPinfoClient":
@@ -70,7 +71,7 @@ class IPinfoClient:
         Get account info and quota via GET /me.
 
         Note: /me only exists on ipinfo.io, not api.ipinfo.io,
-        so this uses a direct request to ipinfo.io.
+        so this uses a direct request to the legacy base URL.
         HTTP errors are propagated as httpx.HTTPStatusError.
         """
         headers: dict[str, str] = {"Accept": "application/json", "User-Agent": USER_AGENT}
@@ -78,7 +79,7 @@ class IPinfoClient:
             headers["Authorization"] = f"Bearer {token}"
         logger.info("GET /me")
         async with httpx.AsyncClient(
-            base_url="https://ipinfo.io",
+            base_url=self._legacy_base_url,
             headers=headers,
             timeout=httpx.Timeout(30.0, connect=10.0),
         ) as http:

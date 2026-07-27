@@ -10,6 +10,7 @@ from ipinfo_mcp.types import ResproxyResponse
 from tests.conftest import make_context
 
 BASE_URL = "https://api.ipinfo.io"
+LEGACY_BASE_URL = "https://ipinfo.io"
 
 RESPROXY_HIT: ResproxyResponse = {
     "ip": "1.2.3.4",
@@ -21,7 +22,7 @@ RESPROXY_HIT: ResproxyResponse = {
 
 @pytest.fixture
 async def client(httpx_mock: HTTPXMock) -> IPinfoClient:
-    async with IPinfoClient(base_url=BASE_URL) as c:
+    async with IPinfoClient(base_url=BASE_URL, legacy_base_url=LEGACY_BASE_URL) as c:
         yield c
 
 
@@ -102,7 +103,7 @@ class TestResproxyErrors:
     async def test_no_token_returns_error(
         self, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
-        async with IPinfoClient(base_url=BASE_URL) as no_token_client:
+        async with IPinfoClient(base_url=BASE_URL, legacy_base_url=LEGACY_BASE_URL) as no_token_client:
             ctx = make_context(no_token_client, cache, api_token=None)
             result = await ipinfo_check_residential_proxy(
                 ips=["1.2.3.4"], page=1, page_size=5, ctx=ctx

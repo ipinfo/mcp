@@ -5,6 +5,7 @@ import pytest
 from ipinfo_mcp.client import IPinfoClient
 
 BASE_URL = "https://api.ipinfo.io"
+LEGACY_BASE_URL = "https://ipinfo.io"
 
 pytestmark = pytest.mark.integration
 
@@ -19,7 +20,7 @@ def token() -> str:
 
 @pytest.fixture
 async def client() -> IPinfoClient:
-    async with IPinfoClient(base_url=BASE_URL) as c:
+    async with IPinfoClient(base_url=BASE_URL, legacy_base_url=LEGACY_BASE_URL) as c:
         yield c
 
 
