@@ -134,9 +134,9 @@ class TestPrivacyCaching:
         self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
         """Privacy should reuse data already cached by a lookup call."""
-        cache.put("lookup", "8.8.8.8", LOOKUP_8888)
+        cache.put("fake_token", "lookup", "8.8.8.8", LOOKUP_8888)
 
-        ctx = make_context(client, cache)
+        ctx = make_context(client, cache, api_token="fake_token")
         result = await ipinfo_check_privacy(
             ips=["8.8.8.8"], page=1, page_size=5, ctx=ctx
         )

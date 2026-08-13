@@ -74,7 +74,7 @@ async def ipinfo_check_privacy(
     page_ips, pagination = paginate_ips(valid_ips, page, page_size)
 
     # Check cache for this page's IPs only
-    cached, misses = cache.get_many(namespace, page_ips)
+    cached, misses = cache.get_many(token, namespace, page_ips)
 
     api_calls = 0
     if misses:
@@ -84,7 +84,7 @@ async def ipinfo_check_privacy(
             api_calls = 1
             for key, data in fetched.items():
                 ip = key.split("/", 1)[1]
-                cache.put(namespace, ip, data)
+                cache.put(token, namespace, ip, data)
                 cached[ip] = data
         except httpx.HTTPStatusError as exc:
             logger.warning("ipinfo_check_privacy api_error status=%d", exc.response.status_code)

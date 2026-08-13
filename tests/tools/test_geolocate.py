@@ -106,9 +106,9 @@ class TestGeolocateCaching:
     async def test_uses_cache(
         self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
-        cache.put("lite", "8.8.8.8", LITE_8888)
+        cache.put("fake_token", "lite", "8.8.8.8", LITE_8888)
 
-        ctx = make_context(client, cache)
+        ctx = make_context(client, cache, api_token="fake_token")
         result = await ipinfo_geolocate(
             ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
         )
