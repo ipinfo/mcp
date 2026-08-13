@@ -176,14 +176,14 @@ class TestLookupCaching:
         self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
         # Pre-populate cache with one IP
-        cache.put("lite", "8.8.8.8", LITE_8888)
+        cache.put("fake_token", "lite", "8.8.8.8", LITE_8888)
 
         httpx_mock.add_response(
             url=f"{BASE_URL}/batch",
             method="POST",
             json={"lite/1.1.1.1": LITE_1111},
         )
-        ctx = make_context(client, cache)
+        ctx = make_context(client, cache, api_token="fake_token")
         result = await ipinfo_lookup(
             ips=["8.8.8.8", "1.1.1.1"], detailed=False, page=1, page_size=5, ctx=ctx
         )

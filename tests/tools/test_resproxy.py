@@ -71,9 +71,9 @@ class TestResproxyCaching:
     async def test_uses_resproxy_cache(
         self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
-        cache.put("resproxy", "1.2.3.4", RESPROXY_HIT)
+        cache.put("fake_token", "resproxy", "1.2.3.4", RESPROXY_HIT)
 
-        ctx = make_context(client, cache)
+        ctx = make_context(client, cache, api_token="fake_token")
         result = await ipinfo_check_residential_proxy(
             ips=["1.2.3.4"], page=1, page_size=5, ctx=ctx
         )
