@@ -9,6 +9,7 @@ ErrorCode = Literal[
     "RATE_LIMITED",
     "INVALID_TOKEN",
     "NO_TOKEN",
+    "API_ERROR",
     "UNKNOWN",
 ]
 
