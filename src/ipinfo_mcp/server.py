@@ -11,7 +11,7 @@ from fastmcp import FastMCP
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from ipinfo_mcp.cache import IPCache
+from ipinfo_mcp.cache import DEFAULT_TTL, IPCache
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.logging import setup_logging
 from ipinfo_mcp.tools.asn import register_asn
@@ -28,6 +28,7 @@ class Settings(TypedDict):
     api_token: str | None
     api_base_url: str
     legacy_base_url: str
+    cache_ttl: float
 
 
 def _settings() -> Settings:
@@ -35,6 +36,7 @@ def _settings() -> Settings:
         "api_token": os.environ.get("IPINFO_TOKEN"),
         "api_base_url": os.environ.get("IPINFO_API_BASE_URL", "https://api.ipinfo.io"),
         "legacy_base_url": os.environ.get("IPINFO_LEGACY_BASE_URL", "https://ipinfo.io"),
+        "cache_ttl": float(os.environ.get("IPINFO_CACHE_TTL", DEFAULT_TTL)),
     }
 
 
@@ -52,10 +54,11 @@ async def lifespan(_: FastMCP) -> AsyncIterator[ContextData]:
         base_url=settings["api_base_url"],
         legacy_base_url=settings["legacy_base_url"],
     ) as client:
-        cache = IPCache()
+        cache = IPCache(ttl=settings["cache_ttl"])
         logger.info(
-            "IPinfo MCP server started (token=%s)",
+            "IPinfo MCP server started (token=%s cache_ttl=%s)",
             "configured" if settings["api_token"] else "anonymous",
+            settings["cache_ttl"],
         )
         yield {"client": client, "cache": cache, "api_token": settings["api_token"]}
     logger.info("IPinfo MCP server stopped")
