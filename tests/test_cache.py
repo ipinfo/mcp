@@ -1,7 +1,30 @@
+import pytest
+
+from ipinfo_mcp import cache as cache_module
 from ipinfo_mcp.cache import IPCache
 
 TOKEN = "token_a"
 OTHER_TOKEN = "token_b"
+
+
+class FakeClock:
+    """Controllable stand-in for time.monotonic, so TTL tests need no sleeps."""
+
+    def __init__(self, now: float = 1000.0) -> None:
+        self.now = now
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
+@pytest.fixture
+def clock(monkeypatch: pytest.MonkeyPatch) -> FakeClock:
+    fake = FakeClock()
+    monkeypatch.setattr(cache_module.time, "monotonic", fake)
+    return fake
 
 
 class TestIPCachePutGet:
@@ -124,3 +147,63 @@ class TestIPCachePutMany:
         cache.put_many(TOKEN, "lite", {"8.8.8.8": {"ip": "8.8.8.8"}})
 
         assert cache.get(OTHER_TOKEN, "lite", "8.8.8.8") is None
+
+
+class TestIPCacheTTL:
+    def test_entry_is_fresh_before_ttl(self, clock: FakeClock) -> None:
+        cache = IPCache(ttl=60.0)
+        cache.put(TOKEN, "lite", "8.8.8.8", {"ip": "8.8.8.8"})
+
+        clock.advance(59.0)
+        assert cache.get(TOKEN, "lite", "8.8.8.8") == {"ip": "8.8.8.8"}
+
+    def test_entry_is_fresh_exactly_at_ttl(self, clock: FakeClock) -> None:
+        cache = IPCache(ttl=60.0)
+        cache.put(TOKEN, "lite", "8.8.8.8", {"ip": "8.8.8.8"})
+
+        clock.advance(60.0)
+        assert cache.get(TOKEN, "lite", "8.8.8.8") == {"ip": "8.8.8.8"}
+
+    def test_entry_expires_after_ttl(self, clock: FakeClock) -> None:
+        cache = IPCache(ttl=60.0)
+        cache.put(TOKEN, "lite", "8.8.8.8", {"ip": "8.8.8.8"})
+
+        clock.advance(60.1)
+        assert cache.get(TOKEN, "lite", "8.8.8.8") is None
+
+    def test_expired_entry_is_dropped_from_the_store(self, clock: FakeClock) -> None:
+        """Expiry cleans as it reads, so an expired entry doesn't linger."""
+        cache = IPCache(ttl=60.0)
+        cache.put(TOKEN, "lite", "8.8.8.8", {"ip": "8.8.8.8"})
+
+        clock.advance(61.0)
+        _ = cache.get(TOKEN, "lite", "8.8.8.8")
+
+        assert cache._store == {}
+
+    def test_expired_entry_is_a_miss_in_get_many(self, clock: FakeClock) -> None:
+        cache = IPCache(ttl=60.0)
+        cache.put(TOKEN, "lite", "8.8.8.8", {"ip": "8.8.8.8"})
+        clock.advance(61.0)
+        cache.put(TOKEN, "lite", "1.1.1.1", {"ip": "1.1.1.1"})
+
+        cached, misses = cache.get_many(TOKEN, "lite", ["8.8.8.8", "1.1.1.1"])
+        assert cached == {"1.1.1.1": {"ip": "1.1.1.1"}}
+        assert misses == ["8.8.8.8"]
+
+    def test_put_resets_the_ttl(self, clock: FakeClock) -> None:
+        cache = IPCache(ttl=60.0)
+        cache.put(TOKEN, "lite", "8.8.8.8", {"old": True})
+
+        clock.advance(59.0)
+        cache.put(TOKEN, "lite", "8.8.8.8", {"new": True})
+
+        clock.advance(59.0)
+        assert cache.get(TOKEN, "lite", "8.8.8.8") == {"new": True}
+
+    def test_put_many_entries_expire(self, clock: FakeClock) -> None:
+        cache = IPCache(ttl=60.0)
+        cache.put_many(TOKEN, "lite", {"8.8.8.8": {"ip": "8.8.8.8"}})
+
+        clock.advance(61.0)
+        assert cache.get(TOKEN, "lite", "8.8.8.8") is None
