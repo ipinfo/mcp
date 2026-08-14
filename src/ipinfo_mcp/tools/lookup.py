@@ -8,7 +8,7 @@ from mcp.types import ToolAnnotations
 from ipinfo_mcp.auth import get_request_token
 from ipinfo_mcp.cache import CachedResponse, IPCache
 from ipinfo_mcp.client import IPinfoClient
-from ipinfo_mcp.errors import ErrorResponse, handle_api_error, no_token_error
+from ipinfo_mcp.errors import ErrorResponse, extract_error, handle_api_error, no_token_error
 from ipinfo_mcp.pagination import PaginationMeta, paginate_ips
 from ipinfo_mcp.validation import validate_ips
 
@@ -25,6 +25,7 @@ class LookupResult(TypedDict):
     _meta: LookupMeta
     results: dict[str, CachedResponse]
     validation_errors: NotRequired[dict[str, str]]
+    errors: NotRequired[dict[str, ErrorResponse]]
 
 
 async def ipinfo_lookup(
@@ -42,6 +43,9 @@ async def ipinfo_lookup(
     privacy flags (VPN, proxy, Tor, hosting, anycast), and richer AS data.
 
     Results are paginated. Use page and page_size to control which slice is returned.
+
+    If the API reports an error for specific IPs, those IPs are listed in errors
+    with the reason and left out of results.
 
     Results are cached in memory for the session, so repeat lookups of the same IP
     are served from cache without consuming API quota. You do not need to maintain
@@ -68,6 +72,7 @@ async def ipinfo_lookup(
     cached, misses = cache.get_many(token, namespace, page_ips)
 
     api_calls = 0
+    errors: dict[str, ErrorResponse] = {}
     if misses:
         keys = [f"{namespace}/{ip}" for ip in misses]
         try:
@@ -75,6 +80,11 @@ async def ipinfo_lookup(
             api_calls = 1
             for key, data in fetched.items():
                 ip = key.split("/", 1)[1]
+                if error := extract_error(data):
+                    errors[ip] = error
+                    # Errors are never cached, some of them can be recovered by the user.
+                    # Caching them would make it impossible.
+                    continue
                 cache.put(token, namespace, ip, data)
                 cached[ip] = data
         except httpx.HTTPStatusError as exc:
@@ -93,6 +103,7 @@ async def ipinfo_lookup(
             "from_cache": from_cache,
         },
         "results": page_results,
+        "errors": errors,
     }
 
     if validation_errors:

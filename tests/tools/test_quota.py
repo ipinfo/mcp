@@ -75,8 +75,9 @@ class TestQuotaErrors:
         ctx = make_context(client, cache)
         result = await ipinfo_quota(ctx=ctx)
 
-        assert result["error"] is True
         assert result["code"] == "ACCESS_DENIED"
+        assert result["message"] == "You don't have access to quota."
+        assert result["suggestion"] == "Tell the user they can get access by upgrading at https://ipinfo.io/pricing"
 
     async def test_no_token_returns_error(
         self, cache: IPCache, httpx_mock: HTTPXMock
@@ -85,5 +86,6 @@ class TestQuotaErrors:
             ctx = make_context(no_token_client, cache, api_token=None)
             result = await ipinfo_quota(ctx=ctx)
 
-            assert result["error"] is True
             assert result["code"] == "NO_TOKEN"
+            assert result["message"] == "No API token configured."
+            assert result["suggestion"] == "The user didn't set IPINFO_TOKEN. They can get a free token at https://ipinfo.io/signup"

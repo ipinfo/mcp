@@ -119,6 +119,93 @@ class TestGeolocateCaching:
 
 
 class TestGeolocateErrors:
+    async def test_per_key_error_is_surfaced(
+        self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        """A per-key error body arrives inside a 200 batch response."""
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/batch",
+            method="POST",
+            json={
+                "lite/8.8.8.8": {
+                    "error": "Token does not have access to this API",
+                    "token": "some_token",
+                }
+            },
+        )
+        ctx = make_context(client, cache)
+        result = await ipinfo_geolocate(
+            ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
+        )
+
+        assert "8.8.8.8" not in result["results"]
+        assert result["errors"]["8.8.8.8"] == {
+            "code": "ACCESS_DENIED",
+            "message": "Token does not have access to this API",
+            "suggestion": "Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
+        }
+
+    async def test_per_key_error_is_not_cached(
+        self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        """An errored IP must not be cached, or the error outlives the request."""
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/batch",
+            method="POST",
+            json={"lite/8.8.8.8": {"error": "Token does not have access to this API"}},
+        )
+        ctx = make_context(client, cache, api_token="fake_token")
+        _ = await ipinfo_geolocate(
+            ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
+        )
+
+        assert cache.get("fake_token", "lite", "8.8.8.8") is None
+
+    async def test_bare_message_error_is_surfaced(
+        self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        """The generic error handler replies with a message and no error key."""
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/batch",
+            method="POST",
+            json={"lite/8.8.8.8": {"message": "The server exploded"}},
+        )
+        ctx = make_context(client, cache)
+        result = await ipinfo_geolocate(
+            ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
+        )
+
+        assert "8.8.8.8" not in result["results"]
+        assert result["errors"]["8.8.8.8"] == {
+            "code": "UNKNOWN",
+            "message": "The server exploded",
+            "suggestion": "An unforseen error happened, tell the user to report it to https://ipinfo.io/",
+        }
+
+    async def test_partial_error_still_returns_good_ips(
+        self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/batch",
+            method="POST",
+            json={
+                "lite/8.8.8.8": LITE_8888,
+                "lite/1.1.1.1": {"error": "Token does not have access to this API"},
+            },
+        )
+        ctx = make_context(client, cache)
+        result = await ipinfo_geolocate(
+            ips=["8.8.8.8", "1.1.1.1"], detailed=False, page=1, page_size=5, ctx=ctx
+        )
+
+        assert result["results"]["8.8.8.8"]["country"] == "United States"
+        assert "1.1.1.1" not in result["results"]
+        assert result["errors"]["1.1.1.1"] == {
+            "code": "ACCESS_DENIED",
+            "message": "Token does not have access to this API",
+            "suggestion": "Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
+        }
+
     async def test_403_returns_access_denied(
         self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
@@ -132,8 +219,9 @@ class TestGeolocateErrors:
             ips=["8.8.8.8"], detailed=True, page=1, page_size=5, ctx=ctx
         )
 
-        assert result["error"] is True
         assert result["code"] == "ACCESS_DENIED"
+        assert result["message"] == "You don't have access to geolocation."
+        assert result["suggestion"] == "Tell the user they can get access by upgrading at https://ipinfo.io/pricing"
 
     async def test_no_token_returns_error(
         self, cache: IPCache, httpx_mock: HTTPXMock
@@ -144,8 +232,9 @@ class TestGeolocateErrors:
                 ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
             )
 
-            assert result["error"] is True
             assert result["code"] == "NO_TOKEN"
+            assert result["message"] == "No API token configured."
+            assert result["suggestion"] == "The user didn't set IPINFO_TOKEN. They can get a free token at https://ipinfo.io/signup"
 
 
 class TestGeolocateValidation:
