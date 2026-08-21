@@ -3,6 +3,7 @@ import os
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -22,6 +23,8 @@ from ipinfo_mcp.tools.quota import register_quota
 from ipinfo_mcp.tools.resproxy import register_resproxy
 
 logger = logging.getLogger(__name__)
+
+SERVER_VERSION = version("ipinfo-mcp-server")
 
 
 class Settings(TypedDict):
@@ -107,7 +110,7 @@ class LandingPageMiddleware:
         if scope["type"] == "http" and scope["method"] == "GET":
             path = cast(str, scope["path"])
             if path in ("/.healthz/is-ready", "/.healthz/is-alive"):
-                response = JSONResponse({"status": "ok"})
+                response = JSONResponse({"status": "ok", "version": SERVER_VERSION})
                 await response(scope, receive, send)
                 return
             if path == "/":
