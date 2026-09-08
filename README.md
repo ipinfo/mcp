@@ -3,6 +3,7 @@
 IPinfo API MCP Server for Residential Proxy, Lite, Core, and Plus bundles.
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ipinfo/mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/ipinfo/mcp)
+[![smithery badge](https://smithery.ai/badge/ipinfo/mcp-server)](https://smithery.ai/servers/ipinfo/mcp-server)
 
 <!-- ipinfo-mcp-server: io.github.ipinfo/mcp -->
 
