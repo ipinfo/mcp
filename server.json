@@ -3,7 +3,7 @@
   "name": "io.github.ipinfo/mcp",
   "title": "IPinfo",
   "description": "Official IPinfo MCP Server - IP intelligence tools for AI assistants",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "websiteUrl": "https://ipinfo.io",
   "repository": {
     "url": "https://github.com/ipinfo/mcp",
@@ -26,7 +26,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "ipinfo-mcp-server",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
