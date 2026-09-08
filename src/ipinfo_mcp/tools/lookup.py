@@ -1,15 +1,17 @@
 import logging
-from typing import NotRequired, TypedDict
+from typing import Annotated, NotRequired, TypedDict
 
 import httpx
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from ipinfo_mcp.auth import get_request_token
 from ipinfo_mcp.cache import CachedResponse, IPCache
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.errors import ErrorResponse, extract_error, handle_api_error, no_token_error
 from ipinfo_mcp.pagination import PaginationMeta, paginate_ips
+from ipinfo_mcp.params import IPsParam, PageParam, PageSizeParam
 from ipinfo_mcp.validation import validate_ips
 
 logger = logging.getLogger(__name__)
@@ -29,17 +31,28 @@ class LookupResult(TypedDict):
 
 
 async def ipinfo_lookup(
-    ips: list[str],
-    detailed: bool = False,
-    page: int = 1,
-    page_size: int = 25,
+    ips: IPsParam,
+    detailed: Annotated[
+        bool,
+        Field(
+            description=(
+                "Which IPinfo endpoint to query. Leave false to use the Lite endpoint, which "
+                "returns country, continent, and basic ASN. Set to true to use the full lookup "
+                "endpoint, which also returns city-level geolocation, privacy flags (VPN, proxy, "
+                "Tor, hosting, anycast), and richer AS data; it requires a token whose plan "
+                "includes that data, otherwise the call fails with ACCESS_DENIED."
+            )
+        ),
+    ] = False,
+    page: PageParam = 1,
+    page_size: PageSizeParam = 25,
     ctx: Context | None = None,
 ) -> LookupResult | ErrorResponse:
     """
     Look up geolocation, network, and metadata for one or more IP addresses.
 
-    By default uses the free lite API which returns country, continent, and ASN info.
-    Set detailed=True to use the paid lookup API which adds city-level geolocation,
+    By default queries the IPinfo Lite endpoint, which returns country, continent, and ASN info.
+    Set detailed=True to query the full lookup endpoint, which adds city-level geolocation,
     privacy flags (VPN, proxy, Tor, hosting, anycast), and richer AS data.
 
     Results are paginated. Use page and page_size to control which slice is returned.

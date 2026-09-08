@@ -10,6 +10,7 @@ from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.errors import ErrorResponse, extract_error, handle_api_error, no_token_error
 from ipinfo_mcp.pagination import PaginationMeta, paginate_ips
+from ipinfo_mcp.params import IPsParam, PageParam, PageSizeParam
 from ipinfo_mcp.types import AnonymousObject
 from ipinfo_mcp.validation import validate_ips
 
@@ -40,9 +41,9 @@ class PrivacyResult(TypedDict):
 
 
 async def ipinfo_check_privacy(
-    ips: list[str],
-    page: int = 1,
-    page_size: int = 25,
+    ips: IPsParam,
+    page: PageParam = 1,
+    page_size: PageSizeParam = 25,
     ctx: Context | None = None,
 ) -> PrivacyResult | ErrorResponse:
     """

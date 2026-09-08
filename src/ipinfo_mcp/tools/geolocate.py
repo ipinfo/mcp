@@ -1,15 +1,17 @@
 import logging
-from typing import NotRequired, TypedDict, cast
+from typing import Annotated, NotRequired, TypedDict, cast
 
 import httpx
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from ipinfo_mcp.auth import get_request_token
 from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.errors import ErrorResponse, extract_error, handle_api_error, no_token_error
 from ipinfo_mcp.pagination import PaginationMeta, paginate_ips
+from ipinfo_mcp.params import IPsParam, PageParam, PageSizeParam
 from ipinfo_mcp.types import GeoObject
 from ipinfo_mcp.validation import validate_ips
 
@@ -45,17 +47,28 @@ class GeoResult(TypedDict):
 
 
 async def ipinfo_geolocate(
-    ips: list[str],
-    detailed: bool = False,
-    page: int = 1,
-    page_size: int = 25,
+    ips: IPsParam,
+    detailed: Annotated[
+        bool,
+        Field(
+            description=(
+                "Which IPinfo endpoint to query. Leave false to use the Lite endpoint, which "
+                "returns country and continent only. Set to true to use the full lookup endpoint, "
+                "which also returns city, region, latitude and longitude, timezone, and postal "
+                "code; it requires a token whose plan includes that data, otherwise the call "
+                "fails with ACCESS_DENIED."
+            )
+        ),
+    ] = False,
+    page: PageParam = 1,
+    page_size: PageSizeParam = 25,
     ctx: Context | None = None,
 ) -> GeoResult | ErrorResponse:
     """
     Get geographic location data for one or more IP addresses.
 
-    By default uses the free lite API which returns country and continent.
-    Set detailed=True to use the paid lookup API which adds city, region,
+    By default queries the IPinfo Lite endpoint, which returns country and continent.
+    Set detailed=True to query the full lookup endpoint, which adds city, region,
     coordinates, timezone, and postal code.
 
     Results are paginated.
