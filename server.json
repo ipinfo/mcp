@@ -1,0 +1,68 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ipinfo/mcp",
+  "title": "IPinfo",
+  "description": "Official IPinfo MCP Server - IP intelligence tools for AI assistants",
+  "version": "0.1.9",
+  "websiteUrl": "https://ipinfo.io",
+  "repository": {
+    "url": "https://github.com/ipinfo/mcp",
+    "source": "github"
+  },
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/ipinfo/mcp/main/assets/logo-light.png",
+      "mimeType": "image/png",
+      "theme": "light"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/ipinfo/mcp/main/assets/logo-dark.png",
+      "mimeType": "image/png",
+      "theme": "dark"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "ipinfo-mcp-server",
+      "version": "0.1.9",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "IPINFO_TOKEN",
+          "description": "Your IPinfo API token. Get a free one at https://ipinfo.io/signup",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.ipinfo.io/",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Your IPinfo API token as a bearer credential. Get a free one at https://ipinfo.io/signup",
+          "isRequired": true,
+          "isSecret": true,
+          "value": "Bearer {ipinfo_token}",
+          "variables": {
+            "ipinfo_token": {
+              "description": "Your IPinfo API token",
+              "isRequired": true,
+              "isSecret": true,
+              "format": "string"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

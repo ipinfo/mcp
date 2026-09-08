@@ -4,6 +4,8 @@ IPinfo API MCP Server for Residential Proxy, Lite, Core, and Plus bundles.
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ipinfo/mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/ipinfo/mcp)
 
+<!-- ipinfo-mcp-server: io.github.ipinfo/mcp -->
+
 ## Development
 
 ### Prerequisites
@@ -35,15 +37,15 @@ IPINFO_TRANSPORT=http IPINFO_HOST=0.0.0.0 IPINFO_PORT=8000 uv run ipinfo-mcp-ser
 
 ### Environment variables
 
-| Variable              | Default                 | Description                           |
-| --------------------- | ----------------------- | ------------------------------------- |
-| `IPINFO_TOKEN`        |                         | API token                             |
-| `IPINFO_API_BASE_URL` | `https://api.ipinfo.io` | Base URL for `api.ipinfo.io` endpoints |
-| `IPINFO_LEGACY_BASE_URL` | `https://ipinfo.io`  | Base URL for legacy `ipinfo.io` endpoints (e.g. `/me`) |
-| `IPINFO_CACHE_TTL`    | `3600`                  | Seconds a cached IP result stays fresh |
-| `IPINFO_TRANSPORT`    | `stdio`                 | Transport type (`stdio` or `http`)    |
-| `IPINFO_HOST`         | `0.0.0.0`               | HTTP host (only for `http` transport) |
-| `IPINFO_PORT`         | `8000`                  | HTTP port (only for `http` transport) |
+| Variable                 | Default                 | Description                                            |
+| ------------------------ | ----------------------- | ------------------------------------------------------ |
+| `IPINFO_TOKEN`           |                         | API token                                              |
+| `IPINFO_API_BASE_URL`    | `https://api.ipinfo.io` | Base URL for `api.ipinfo.io` endpoints                 |
+| `IPINFO_LEGACY_BASE_URL` | `https://ipinfo.io`     | Base URL for legacy `ipinfo.io` endpoints (e.g. `/me`) |
+| `IPINFO_CACHE_TTL`       | `3600`                  | Seconds a cached IP result stays fresh                 |
+| `IPINFO_TRANSPORT`       | `stdio`                 | Transport type (`stdio` or `http`)                     |
+| `IPINFO_HOST`            | `0.0.0.0`               | HTTP host (only for `http` transport)                  |
+| `IPINFO_PORT`            | `8000`                  | HTTP port (only for `http` transport)                  |
 
 ### Tests
 
