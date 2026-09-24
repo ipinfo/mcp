@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,11 +40,23 @@ jobs:
           name: ipinfo-mcp-server.mcpb
           path: "*.mcpb"
 
+      - name: Attest build provenance
+        id: attest
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "*.mcpb"
+
+      # Scorecard's Signed-Releases check looks for provenance among the
+      # release assets, so attach the attestation bundle to the release.
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        run: gh release create "${{ github.ref_name }}" *.mcpb --generate-notes
+        run: |
+          cp "$BUNDLE_PATH" provenance.intoto.jsonl
+          gh release create "${{ github.ref_name }}" *.mcpb provenance.intoto.jsonl --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
 
   build:
     runs-on: ubuntu-latest
