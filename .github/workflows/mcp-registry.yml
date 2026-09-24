@@ -1,15 +1,11 @@
 name: "MCP Registry: Publish"
 
 on:
-  workflow_run:
-    workflows: ["PyPI: Publish"]
-    types:
-      - completed
+  workflow_call:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
 
     permissions:
       contents: read
@@ -18,8 +14,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Install mcp-publisher
         run: |
