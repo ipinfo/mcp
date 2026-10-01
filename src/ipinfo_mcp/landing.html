@@ -1408,8 +1408,13 @@
                                     "mcp-remote",
                                     "https://mcp.ipinfo.io/",
                                     "--header",
-                                    "Authorization: Bearer " + tok,
+                                    // Claude Desktop on Windows doesn't escape spaces in args
+                                    // when it spawns npx, so keep them in an env var instead.
+                                    "Authorization:${AUTH_HEADER}",
                                 ],
+                                env: {
+                                    AUTH_HEADER: "Bearer " + tok,
+                                },
                             },
                         },
                     },

@@ -13,7 +13,10 @@
     "entry_point": "src/ipinfo_mcp/__main__.py",
     "mcp_config": {
       "command": "uv",
-      "args": ["run", "ipinfo-mcp-server"]
+      "args": ["run", "ipinfo-mcp-server"],
+      "env": {
+        "IPINFO_TOKEN": "${user_config.IPINFO_TOKEN}"
+      }
     }
   },
   "user_config": {
