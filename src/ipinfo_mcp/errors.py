@@ -89,6 +89,15 @@ def handle_api_error(
     """
     status = exc.response.status_code
 
+    # Only OAuth access tokens get a 401, e.g. when the user revoked access after the
+    # token was issued. The API answers unknown API tokens with a 403.
+    if status == 401:
+        return ErrorResponse(
+            code="INVALID_TOKEN",
+            message="The IPinfo API rejected the access token.",
+            suggestion="Tell the user to reconnect IPinfo in their MCP client to authorize access again",
+        )
+
     if status == 403:
         message = (
             f"You don't have access to {feature_name}." if feature_name else "You don't have access to this feature."
