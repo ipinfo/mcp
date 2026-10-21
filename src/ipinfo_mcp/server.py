@@ -9,9 +9,11 @@ from typing import TypedDict, cast
 
 import uvicorn
 from fastmcp import FastMCP
+from fastmcp.server.auth import MultiAuth
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from ipinfo_mcp.auth import create_auth
 from ipinfo_mcp.cache import DEFAULT_TTL, IPCache
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.logging import setup_logging
@@ -41,6 +43,23 @@ def _settings() -> Settings:
         "legacy_base_url": os.environ.get("IPINFO_LEGACY_BASE_URL", "https://ipinfo.io"),
         "cache_ttl": float(os.environ.get("IPINFO_CACHE_TTL", DEFAULT_TTL)),
     }
+
+
+def _auth() -> MultiAuth | None:
+    """
+    Create the OAuth provider, or None when OAuth is not configured.
+    """
+    issuer = os.environ.get("IPINFO_OAUTH_ISSUER")
+    if not issuer:
+        return None
+    resource_url = os.environ.get("IPINFO_MCP_RESOURCE_URL")
+    if not resource_url:
+        raise RuntimeError("IPINFO_MCP_RESOURCE_URL must be set when IPINFO_OAUTH_ISSUER is")
+    return create_auth(
+        issuer=issuer,
+        resource_url=resource_url,
+        jwks_uri=os.environ.get("IPINFO_OAUTH_JWKS_URI"),
+    )
 
 
 class ContextData(TypedDict):
@@ -84,6 +103,7 @@ mcp = FastMCP(
         "response reports how many results came from cache vs. the API."
     ),
     lifespan=lifespan,
+    auth=_auth(),
 )
 
 register_lookup(mcp)

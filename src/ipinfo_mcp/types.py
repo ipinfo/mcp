@@ -112,7 +112,8 @@ class FeatureQuota(TypedDict):
 
 
 class MeResponse(TypedDict):
-    token: str
+    # Omitted when authenticated with an OAuth access token
+    token: NotRequired[str]
     requests: RequestsInfo
     features: NotRequired[dict[str, FeatureQuota]]
 
