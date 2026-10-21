@@ -3,7 +3,7 @@ from typing import cast, override
 
 from fastmcp import Context
 from fastmcp.server.auth import AccessToken, JWTVerifier, MultiAuth, RemoteAuthProvider, TokenVerifier
-from fastmcp.server.dependencies import get_http_request
+from fastmcp.server.dependencies import get_access_token, get_http_request
 from joserfc import jws
 from joserfc.errors import JoseError
 from pydantic import AnyHttpUrl
@@ -28,6 +28,19 @@ def get_request_token(ctx: Context) -> str | None:
             return auth[7:].strip() or None
         return None
     return ctx.lifespan_context.get("api_token")
+
+
+def get_cache_owner(token: str) -> str:
+    """
+    Get who cached results fetched with token belong to.
+
+    OAuth access tokens are replaced on every refresh, so scoping the cache by them
+    would orphan it each time. They are scoped by the account they act for instead.
+    """
+    access = get_access_token()
+    if access is not None and access.subject:
+        return f"oauth:{access.subject}"
+    return token
 
 
 def is_jwt(token: str) -> bool:

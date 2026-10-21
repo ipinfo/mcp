@@ -5,7 +5,7 @@ import httpx
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
-from ipinfo_mcp.auth import get_request_token
+from ipinfo_mcp.auth import get_cache_owner, get_request_token
 from ipinfo_mcp.cache import IPCache
 from ipinfo_mcp.client import IPinfoClient
 from ipinfo_mcp.errors import ErrorResponse, extract_error, handle_api_error, no_token_error
@@ -79,8 +79,9 @@ async def ipinfo_check_privacy(
 
     page_ips, pagination = paginate_ips(valid_ips, page, page_size)
 
+    owner = get_cache_owner(token)
     # Check cache for this page's IPs only
-    cached, misses = cache.get_many(token, namespace, page_ips)
+    cached, misses = cache.get_many(owner, namespace, page_ips)
 
     api_calls = 0
     errors: dict[str, ErrorResponse] = {}
@@ -96,7 +97,7 @@ async def ipinfo_check_privacy(
                     # Errors are never cached, some of them can be recovered by the user.
                     # Caching them would make it impossible.
                     continue
-                cache.put(token, namespace, ip, data)
+                cache.put(owner, namespace, ip, data)
                 cached[ip] = data
         except httpx.HTTPStatusError as exc:
             logger.warning("ipinfo_check_privacy api_error status=%d", exc.response.status_code)
