@@ -330,6 +330,24 @@ class TestLookupErrors:
         assert result["message"] == "You don't have access to lookup."
         assert result["suggestion"] == "Tell the user they can get access by upgrading at https://ipinfo.io/pricing"
 
+    async def test_401_returns_invalid_token(
+        self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/batch",
+            method="POST",
+            status_code=401,
+            json={"error": "invalid_token"},
+        )
+        ctx = make_context(client, cache)
+        result = await ipinfo_lookup(
+            ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
+        )
+
+        assert result["code"] == "INVALID_TOKEN"
+        assert result["message"] == "The IPinfo API rejected the access token."
+        assert result["suggestion"] == "Tell the user to reconnect IPinfo in their MCP client to authorize access again"
+
     async def test_429_returns_rate_limited(
         self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:

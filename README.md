@@ -118,23 +118,28 @@ Returns, per IP: `ip` and `is_residential_proxy`. For residential proxies, also 
 
 ### `ipinfo_quota`
 
-Takes no parameters. Returns `token`, `requests` (`day`, `month`, `limit`, `remaining`), and per-feature quotas under `features`.
+Takes no parameters. Returns `token` (omitted when connected with OAuth), `requests` (`day`, `month`, `limit`, `remaining`), and per-feature quotas under `features`.
 
 ## Configuration
 
 The server is configured through environment variables:
 
-| Variable                 | Default                 | Description                                                             |
-| ------------------------ | ----------------------- | ----------------------------------------------------------------------- |
-| `IPINFO_TOKEN`           |                         | API token (stdio transport; over HTTP the token comes from the request) |
-| `IPINFO_API_BASE_URL`    | `https://api.ipinfo.io` | Base URL for `api.ipinfo.io` endpoints                                  |
-| `IPINFO_LEGACY_BASE_URL` | `https://ipinfo.io`     | Base URL for legacy `ipinfo.io` endpoints (e.g. `/me`)                  |
-| `IPINFO_CACHE_TTL`       | `3600`                  | Seconds a cached IP result stays fresh                                  |
-| `IPINFO_TRANSPORT`       | `stdio`                 | Transport type (`stdio` or `http`)                                      |
-| `HOST`                   | `0.0.0.0`               | HTTP host (only for `http` transport)                                   |
-| `PORT`                   | `8000`                  | HTTP port (only for `http` transport)                                   |
+| Variable                  | Default                          | Description                                                             |
+| ------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
+| `IPINFO_TOKEN`            |                                  | API token (stdio transport; over HTTP the token comes from the request) |
+| `IPINFO_API_BASE_URL`     | `https://api.ipinfo.io`          | Base URL for `api.ipinfo.io` endpoints                                  |
+| `IPINFO_LEGACY_BASE_URL`  | `https://ipinfo.io`              | Base URL for legacy `ipinfo.io` endpoints (e.g. `/me`)                  |
+| `IPINFO_CACHE_TTL`        | `3600`                           | Seconds a cached IP result stays fresh                                  |
+| `IPINFO_TRANSPORT`        | `stdio`                          | Transport type (`stdio` or `http`)                                      |
+| `HOST`                    | `0.0.0.0`                        | HTTP host (only for `http` transport)                                   |
+| `PORT`                    | `8000`                           | HTTP port (only for `http` transport)                                   |
+| `IPINFO_OAUTH_ISSUER`     |                                  | OAuth issuer whose access tokens are accepted; OAuth is off when unset  |
+| `IPINFO_MCP_RESOURCE_URL` |                                  | Public URL of this server, required with `IPINFO_OAUTH_ISSUER`          |
+| `IPINFO_OAUTH_JWKS_URI`   | `<issuer>/.well-known/jwks.json` | Where the issuer publishes its signing keys                             |
 
 With the `http` transport, each request authenticates with its own `Authorization: Bearer <token>` header.
+
+Setting `IPINFO_OAUTH_ISSUER` turns on OAuth for the `http` transport. The server then advertises the issuer at `/.well-known/oauth-protected-resource`, answers requests without a valid credential with `401 Unauthorized`, and verifies access tokens against the issuer's signing keys. A verified access token is sent to the IPinfo API in place of an API token. API tokens keep working as before.
 
 ## Feedback
 

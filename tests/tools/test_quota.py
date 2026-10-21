@@ -79,6 +79,22 @@ class TestQuotaErrors:
         assert result["message"] == "You don't have access to quota."
         assert result["suggestion"] == "Tell the user they can get access by upgrading at https://ipinfo.io/pricing"
 
+    async def test_401_returns_invalid_token(
+        self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url=ME_URL,
+            method="GET",
+            status_code=401,
+            json={"error": "invalid_token"},
+        )
+        ctx = make_context(client, cache)
+        result = await ipinfo_quota(ctx=ctx)
+
+        assert result["code"] == "INVALID_TOKEN"
+        assert result["message"] == "The IPinfo API rejected the access token."
+        assert result["suggestion"] == "Tell the user to reconnect IPinfo in their MCP client to authorize access again"
+
     async def test_no_token_returns_error(
         self, cache: IPCache, httpx_mock: HTTPXMock
     ) -> None:
