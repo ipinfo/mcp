@@ -45,24 +45,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://mcp.ipinfo.io/",
-      "headers": [
-        {
-          "name": "Authorization",
-          "description": "Your IPinfo API token as a bearer credential. Get a free one at https://ipinfo.io/signup",
-          "isRequired": true,
-          "isSecret": true,
-          "value": "Bearer {ipinfo_token}",
-          "variables": {
-            "ipinfo_token": {
-              "description": "Your IPinfo API token",
-              "isRequired": true,
-              "isSecret": true,
-              "format": "string"
-            }
-          }
-        }
-      ]
+      "url": "https://mcp.ipinfo.io/"
     }
   ]
 }
