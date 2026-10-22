@@ -113,7 +113,18 @@ register_geolocate(mcp)
 register_asn(mcp)
 register_quota(mcp)
 
-_LANDING_HTML = (Path(__file__).parent / "landing.html").read_text()
+
+def _landing_html(*, oauth: bool) -> str:
+    """
+    Render the landing page, with OAuth setup instructions or API token ones.
+    """
+    html = (Path(__file__).parent / "landing.html").read_text()
+    if oauth:
+        html = html.replace('<html lang="en" data-auth="token">', '<html lang="en" data-auth="oauth">', 1)
+    return html
+
+
+_LANDING_HTML = _landing_html(oauth=mcp.auth is not None)
 
 
 class LandingPageMiddleware:

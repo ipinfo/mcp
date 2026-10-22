@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-auth="token">
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -232,6 +232,12 @@
                 display: block;
             }
 
+            /* The server sets data-auth to oauth when OAuth is on */
+            [data-auth="oauth"] .token-only,
+            [data-auth="token"] .oauth-only {
+                display: none;
+            }
+
             /* Token input */
             .token-row {
                 display: flex;
@@ -422,14 +428,19 @@
             <div class="section">
                 <h2>Connect</h2>
                 <p style="margin-bottom: 0.75rem">
-                    Point your MCP client to this URL:
+                    Point your MCP client to this URL<span class="oauth-only">
+                        and sign in with your IPinfo account when it asks</span
+                    >:
                 </p>
                 <div class="copy-wrapper">
                     <pre><code id="mcp-url"></code></pre>
                     <button class="copy-btn" data-copy="mcp-url">Copy</button>
                 </div>
                 <p class="signup-cta">
-                    Get a free API token at
+                    <span class="oauth-only"
+                        >No IPinfo account yet? Sign up free at</span
+                    >
+                    <span class="token-only">Get a free API token at</span>
                     <a href="https://ipinfo.io/signup">ipinfo.io/signup</a>
                 </p>
             </div>
@@ -437,7 +448,7 @@
             <div class="section">
                 <h2>Client Setup</h2>
 
-                <div class="token-row">
+                <div class="token-row token-only">
                     <label for="token-input">API Token</label>
                     <input
                         id="token-input"
@@ -502,69 +513,82 @@
                             class="accordion-content"
                             id="accordion-claude-desktop"
                         >
-                            <div class="install-section">
-                                <div class="install-badges">
-                                    <a
-                                        href="https://github.com/ipinfo/mcp/releases/latest/download/mcp.mcpb"
-                                        class="install-btn install-btn-claude"
-                                    >
-                                        <svg
-                                            width="14"
-                                            height="14"
-                                            viewBox="0 0 12 12"
-                                            fill="none"
-                                            xmlns="http://www.w3.org/2000/svg"
+                            <div class="oauth-only">
+                                <p class="panel-header">
+                                    Open Settings &rarr; Connectors &rarr; Add
+                                    custom connector and paste the URL above.
+                                </p>
+                                <p class="panel-note">
+                                    Then sign in with your IPinfo account when
+                                    Claude asks.
+                                </p>
+                            </div>
+                            <div class="token-only">
+                                <div class="install-section">
+                                    <div class="install-badges">
+                                        <a
+                                            href="https://github.com/ipinfo/mcp/releases/latest/download/mcp.mcpb"
+                                            class="install-btn install-btn-claude"
                                         >
-                                            <g
-                                                clip-path="url(#claude-desktop-clip)"
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 12 12"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
                                             >
-                                                <path
-                                                    d="m2.96 7.65 1.97-1.1.03-.1-.03-.05h-.1l-.33-.02-1.12-.03-.97-.04-.95-.06-.24-.05L1 5.91l.02-.15.2-.13.29.02.63.05.95.06.69.04 1.02.11h.16L5 5.84l-.06-.04-.04-.04-.99-.66-1.06-.7-.56-.41-.3-.2-.15-.2-.07-.42.28-.3.36.03.1.02.37.29.8.61 1.03.77.16.12.06-.04v-.03l-.06-.11-.57-1.02-.6-1.04-.27-.43-.07-.26c-.03-.1-.04-.2-.04-.3l.3-.42L3.8 1l.42.06.17.15.26.59.42.93.64 1.26.2.37.1.35.03.1h.07v-.06l.05-.7.1-.88.1-1.12.03-.32.16-.38.3-.2.25.11.2.29-.03.18-.12.77-.23 1.21-.15.81h.09l.1-.1.41-.54.69-.86.3-.34.36-.38.22-.18h.43l.32.47-.14.49-.44.56-.37.47-.53.71-.33.57.03.04h.08l1.2-.26.63-.11.77-.13.35.16.04.16-.14.34-.82.2-.96.2-1.44.33-.01.01.02.03.64.06.28.02h.68l1.25.09.33.22.2.26-.03.2-.5.26-.7-.16-1.59-.38-.54-.13h-.08v.04l.46.45.83.75 1.05.97.05.24-.13.2-.15-.03-.92-.69-.35-.31-.8-.68h-.06v.08l.19.27.98 1.46.05.45-.07.15-.26.09-.28-.05-.57-.8-.59-.9-.47-.82-.06.04-.28 3.02-.13.15-.3.12-.26-.2-.14-.3.14-.62.16-.8.13-.64.12-.79.07-.26v-.02H5.9l-.6.83-.9 1.22-.73.77-.17.07-.3-.15.03-.28.17-.24 1-1.27.6-.78.38-.46v-.06h-.03L2.72 8.73l-.47.06-.2-.19.02-.3.1-.1.8-.55Z"
-                                                    fill="#fff"
-                                                ></path>
-                                            </g>
-                                            <defs>
-                                                <clipPath
-                                                    id="claude-desktop-clip"
+                                                <g
+                                                    clip-path="url(#claude-desktop-clip)"
                                                 >
                                                     <path
+                                                        d="m2.96 7.65 1.97-1.1.03-.1-.03-.05h-.1l-.33-.02-1.12-.03-.97-.04-.95-.06-.24-.05L1 5.91l.02-.15.2-.13.29.02.63.05.95.06.69.04 1.02.11h.16L5 5.84l-.06-.04-.04-.04-.99-.66-1.06-.7-.56-.41-.3-.2-.15-.2-.07-.42.28-.3.36.03.1.02.37.29.8.61 1.03.77.16.12.06-.04v-.03l-.06-.11-.57-1.02-.6-1.04-.27-.43-.07-.26c-.03-.1-.04-.2-.04-.3l.3-.42L3.8 1l.42.06.17.15.26.59.42.93.64 1.26.2.37.1.35.03.1h.07v-.06l.05-.7.1-.88.1-1.12.03-.32.16-.38.3-.2.25.11.2.29-.03.18-.12.77-.23 1.21-.15.81h.09l.1-.1.41-.54.69-.86.3-.34.36-.38.22-.18h.43l.32.47-.14.49-.44.56-.37.47-.53.71-.33.57.03.04h.08l1.2-.26.63-.11.77-.13.35.16.04.16-.14.34-.82.2-.96.2-1.44.33-.01.01.02.03.64.06.28.02h.68l1.25.09.33.22.2.26-.03.2-.5.26-.7-.16-1.59-.38-.54-.13h-.08v.04l.46.45.83.75 1.05.97.05.24-.13.2-.15-.03-.92-.69-.35-.31-.8-.68h-.06v.08l.19.27.98 1.46.05.45-.07.15-.26.09-.28-.05-.57-.8-.59-.9-.47-.82-.06.04-.28 3.02-.13.15-.3.12-.26-.2-.14-.3.14-.62.16-.8.13-.64.12-.79.07-.26v-.02H5.9l-.6.83-.9 1.22-.73.77-.17.07-.3-.15.03-.28.17-.24 1-1.27.6-.78.38-.46v-.06h-.03L2.72 8.73l-.47.06-.2-.19.02-.3.1-.1.8-.55Z"
                                                         fill="#fff"
-                                                        transform="translate(1 1)"
-                                                        d="M0 0h10v10H0z"
                                                     ></path>
-                                                </clipPath>
-                                            </defs>
-                                        </svg>
-                                        Download MCPB
-                                    </a>
+                                                </g>
+                                                <defs>
+                                                    <clipPath
+                                                        id="claude-desktop-clip"
+                                                    >
+                                                        <path
+                                                            fill="#fff"
+                                                            transform="translate(1 1)"
+                                                            d="M0 0h10v10H0z"
+                                                        ></path>
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                            Download MCPB
+                                        </a>
+                                    </div>
                                 </div>
+                                <p class="panel-header">
+                                    Add to
+                                    <span class="inline-code"
+                                        >claude_desktop_config.json</span
+                                    >
+                                    &mdash; macOS:
+                                    <span class="inline-code"
+                                        >~/Library/Application
+                                        Support/Claude/</span
+                                    >
+                                    &bull; Windows:
+                                    <span class="inline-code"
+                                        >%APPDATA%\Claude\</span
+                                    >
+                                </p>
+                                <div class="panel-copy">
+                                    <pre><code id="cfg-claude-desktop"></code></pre>
+                                    <button
+                                        class="copy-btn"
+                                        data-copy="cfg-claude-desktop"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                                <p class="panel-note">
+                                    Restart Claude Desktop after saving.
+                                </p>
                             </div>
-                            <p class="panel-header">
-                                Add to
-                                <span class="inline-code"
-                                    >claude_desktop_config.json</span
-                                >
-                                &mdash; macOS:
-                                <span class="inline-code"
-                                    >~/Library/Application Support/Claude/</span
-                                >
-                                &bull; Windows:
-                                <span class="inline-code"
-                                    >%APPDATA%\Claude\</span
-                                >
-                            </p>
-                            <div class="panel-copy">
-                                <pre><code id="cfg-claude-desktop"></code></pre>
-                                <button
-                                    class="copy-btn"
-                                    data-copy="cfg-claude-desktop"
-                                >
-                                    Copy
-                                </button>
-                            </div>
-                            <p class="panel-note">
-                                Restart Claude Desktop after saving.
-                            </p>
                         </div>
                     </div>
 
@@ -809,8 +833,11 @@
                                 </div>
                             </div>
                             <p class="panel-note" style="padding-top: 0.5rem">
-                                Opens VS Code and installs the server with your
-                                token prefilled. Requires VS Code 1.99+.
+                                Opens VS Code and installs the server<span
+                                    class="token-only"
+                                >
+                                    with your token prefilled</span
+                                >. Requires VS Code 1.99+.
                             </p>
                             <hr class="panel-divider" />
                             <p class="manual-label">
@@ -949,8 +976,11 @@
                                 </div>
                             </div>
                             <p class="panel-note" style="padding-top: 0.5rem">
-                                Opens Cursor and installs the server with your
-                                token prefilled.
+                                Opens Cursor and installs the server<span
+                                    class="token-only"
+                                >
+                                    with your token prefilled</span
+                                >.
                             </p>
                             <hr class="panel-divider" />
                             <p class="manual-label">
@@ -1271,6 +1301,11 @@
                                 <span class="inline-code">--scope project</span>
                                 to add it only to the current project, or omit
                                 for the global config.
+                                <span class="oauth-only"
+                                    >Then run
+                                    <span class="inline-code">/mcp</span> in
+                                    Claude Code to sign in.</span
+                                >
                             </p>
                         </div>
                     </div>
@@ -1392,11 +1427,17 @@
 
         <script>
             const BASE_URL = window.location.origin + "/";
+            const OAUTH = document.documentElement.dataset.auth === "oauth";
             const TOKEN_PLACEHOLDER = "<IPINFO_TOKEN>";
 
             document.getElementById("mcp-url").textContent = BASE_URL;
 
             // ── Config generators ────────────────────────────────────────────────────
+
+            // Without a token the client signs in with OAuth, so no header is sent.
+            function authHeaders(tok) {
+                return tok ? { Authorization: "Bearer " + tok } : undefined;
+            }
 
             function cfgClaudeDesktop(url, tok) {
                 return JSON.stringify(
@@ -1430,9 +1471,7 @@
                             ipinfo: {
                                 type: "http",
                                 url: url,
-                                headers: {
-                                    Authorization: "Bearer " + tok,
-                                },
+                                headers: authHeaders(tok),
                             },
                         },
                     },
@@ -1445,10 +1484,7 @@
                 return JSON.stringify(
                     {
                         mcpServers: {
-                            ipinfo: {
-                                url: url,
-                                headers: { Authorization: "Bearer " + tok },
-                            },
+                            ipinfo: { url: url, headers: authHeaders(tok) },
                         },
                     },
                     null,
@@ -1458,10 +1494,7 @@
 
             function cfgLMStudio(url, tok) {
                 return JSON.stringify(
-                    {
-                        url: url,
-                        headers: { Authorization: "Bearer " + tok },
-                    },
+                    { url: url, headers: authHeaders(tok) },
                     null,
                     2,
                 );
@@ -1471,10 +1504,7 @@
                 return JSON.stringify(
                     {
                         mcpServers: {
-                            ipinfo: {
-                                httpUrl: url,
-                                headers: { Authorization: "Bearer " + tok },
-                            },
+                            ipinfo: { httpUrl: url, headers: authHeaders(tok) },
                         },
                     },
                     null,
@@ -1483,9 +1513,12 @@
             }
 
             function cfgClaudeCode(url, tok) {
+                const cmd = "claude mcp add --transport http ipinfo " + url;
+                if (!tok) {
+                    return cmd;
+                }
                 return (
-                    "claude mcp add --transport http ipinfo " +
-                    url +
+                    cmd +
                     " \\\n" +
                     '  --header "Authorization: Bearer ' +
                     tok +
@@ -1494,13 +1527,18 @@
             }
 
             function cfgCodex(url, tok) {
-                return (
+                const cfg =
                     "[mcp_servers.ipinfo]\n" +
                     'transport = "http"\n' +
                     'url       = "' +
                     url +
-                    '"\n\n' +
-                    "[mcp_servers.ipinfo.headers]\n" +
+                    '"';
+                if (!tok) {
+                    return cfg;
+                }
+                return (
+                    cfg +
+                    "\n\n[mcp_servers.ipinfo.headers]\n" +
                     'Authorization = "Bearer ' +
                     tok +
                     '"'
@@ -1516,7 +1554,7 @@
             function deepLinkCursor(url, tok) {
                 const cfg = JSON.stringify({
                     url: url,
-                    headers: { Authorization: "Bearer " + tok },
+                    headers: authHeaders(tok),
                 });
                 return (
                     "cursor://anysphere.cursor-deeplink/mcp/install?name=ipinfo&config=" +
@@ -1529,7 +1567,7 @@
                     name: "ipinfo",
                     type: "http",
                     url: url,
-                    headers: { Authorization: "Bearer " + tok },
+                    headers: authHeaders(tok),
                 };
                 const scheme = insiders ? "vscode-insiders" : "vscode";
                 return (
@@ -1542,7 +1580,7 @@
             function deepLinkLMStudio(url, tok) {
                 const cfg = JSON.stringify({
                     url: url,
-                    headers: { Authorization: "Bearer " + tok },
+                    headers: authHeaders(tok),
                 });
                 return "lmstudio://add_mcp?name=ipinfo&config=" + b64(cfg);
             }
@@ -1560,7 +1598,7 @@
             };
 
             function renderAll(tok) {
-                const t = tok || TOKEN_PLACEHOLDER;
+                const t = OAUTH ? "" : tok || TOKEN_PLACEHOLDER;
                 for (const [id, fn] of Object.entries(generators)) {
                     document.getElementById(id).textContent = fn(BASE_URL, t);
                 }
