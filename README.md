@@ -14,19 +14,15 @@ For the full guide, see the [official documentation](https://ipinfo.io/developer
 
 ## Installation
 
-All tools require an IPinfo API token. Get a free one at [ipinfo.io/signup](https://ipinfo.io/signup).
+You need an IPinfo account. Sign up for free at [ipinfo.io/signup](https://ipinfo.io/signup).
 
 ### Hosted server
 
-Point your MCP client at `https://mcp.ipinfo.io/` (Streamable HTTP) and send your token as a bearer credential:
-
-```
-Authorization: Bearer <your-ipinfo-token>
-```
+Point your MCP client at `https://mcp.ipinfo.io/` (Streamable HTTP). The first time it connects, it asks you to sign in with your IPinfo account through OAuth.
 
 ### Local server (PyPI)
 
-The server is published on PyPI as [`ipinfo-mcp-server`](https://pypi.org/project/ipinfo-mcp-server/) and runs over stdio. With [uv](https://docs.astral.sh/uv/) installed, add it to your MCP client configuration:
+The server is published on PyPI as [`ipinfo-mcp-server`](https://pypi.org/project/ipinfo-mcp-server/) and runs over stdio, authenticating with your [API token](https://ipinfo.io/account/token). With [uv](https://docs.astral.sh/uv/) installed, add it to your MCP client configuration:
 
 ```json
 {

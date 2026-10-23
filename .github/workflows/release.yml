@@ -1,0 +1,56 @@
+name: "Release: Prepare"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.2.3"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 1.2.3, got: $VERSION"
+            exit 1
+          fi
+
+      - name: Checkout repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          token: ${{ secrets.RELEASE_PR_TOKEN }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Bump version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          old=$(uv version --short)
+          uv version "$VERSION" --no-sync
+          sed -i "s/\"version\": \"$old\"/\"version\": \"$VERSION\"/" manifest.json server.json
+
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          git switch -c "release/v$VERSION"
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -am "Bump version to $VERSION"
+          git push origin "release/v$VERSION"
+          gh pr create --base main --title "Bump version to $VERSION" \
+            --body "After merging, push the \`v$VERSION\` tag to publish the release."
