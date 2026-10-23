@@ -8,7 +8,7 @@ For the full guide, see the [official documentation](https://ipinfo.io/developer
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ipinfo/mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/ipinfo/mcp)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14811/badge)](https://www.bestpractices.dev/projects/14811)
-[![LightNow capabilities](https://lightnow.ai/badge/io.github.ipinfo/mcp)](https://lightnow.ai/servers/io.github.ipinfo/mcp)
+[![smithery badge](https://smithery.ai/badge/ipinfo/mcp-server)](https://smithery.ai/servers/ipinfo/mcp-server)
 
 <!-- mcp-name: io.github.ipinfo/mcp -->
 
@@ -49,6 +49,8 @@ Download `mcp.mcpb` from the [latest GitHub release](https://github.com/ipinfo/m
 ### MCP Registry
 
 The server is listed in the [MCP Registry](https://registry.modelcontextprotocol.io/) as `io.github.ipinfo/mcp`.
+
+The server is also listed on [LightNow](https://lightnow.ai/servers/io.github.ipinfo/mcp).
 
 ## Tools
 
