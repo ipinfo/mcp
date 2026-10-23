@@ -46,6 +46,8 @@ Download `mcp.mcpb` from the [latest GitHub release](https://github.com/ipinfo/m
 
 The server is listed in the [MCP Registry](https://registry.modelcontextprotocol.io/) as `io.github.ipinfo/mcp`.
 
+The server is also listed on [LightNow](https://lightnow.ai/servers/io.github.ipinfo/mcp).
+
 ## Tools
 
 | Tool                             | Description                                                       | Plan requirement                      |
