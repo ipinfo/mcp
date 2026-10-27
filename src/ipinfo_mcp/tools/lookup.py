@@ -39,7 +39,7 @@ async def ipinfo_lookup(
                 "Which IPinfo endpoint to query. Leave false to use the Lite endpoint, which "
                 "returns country, continent, and basic ASN. Set to true to use the full lookup "
                 "endpoint, which also returns city-level geolocation, privacy flags (VPN, proxy, "
-                "Tor, hosting, anycast), and richer AS data; it requires a token whose plan "
+                "Tor, hosting, anycast), and richer AS data; it requires an IPinfo plan that "
                 "includes that data, otherwise the call fails with ACCESS_DENIED."
             )
         ),
@@ -130,6 +130,7 @@ def register_lookup(mcp: FastMCP) -> None:
     """Register the ipinfo_lookup tool with the MCP server."""
     _ = mcp.tool(
         annotations=ToolAnnotations(
+            title="IP Lookup",
             read_only_hint=True,
             destructive_hint=False,
             idempotent_hint=True,

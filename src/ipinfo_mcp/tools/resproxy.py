@@ -49,7 +49,7 @@ async def ipinfo_check_residential_proxy(
     Returns whether each IP is a residential proxy and, if so, the proxy service name,
     the date it was last seen, and the percentage of days the IP was observed as a proxy.
 
-    Requires a paid API token with residential proxy access. Results are paginated.
+    Requires an IPinfo plan with residential proxy access. Results are paginated.
 
     If the API reports an error for specific IPs, those IPs are listed in errors
     with the reason and left out of results. Do not treat a missing result as
@@ -137,6 +137,7 @@ def register_resproxy(mcp: FastMCP) -> None:
     """Register the ipinfo_check_residential_proxy tool with the MCP server."""
     _ = mcp.tool(
         annotations=ToolAnnotations(
+            title="Residential Proxy Detection",
             read_only_hint=True,
             destructive_hint=False,
             idempotent_hint=True,

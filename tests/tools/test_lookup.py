@@ -249,7 +249,7 @@ class TestLookupErrors:
         assert result["errors"]["8.8.8.8"] == {
             "code": "ACCESS_DENIED",
             "message": "Token does not have access to this API",
-            "suggestion": "Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
+            "suggestion": "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing",
         }
 
     async def test_per_key_error_is_not_cached(
@@ -286,7 +286,7 @@ class TestLookupErrors:
         assert result["errors"]["8.8.8.8"] == {
             "code": "UNKNOWN",
             "message": "The server exploded",
-            "suggestion": "An unforseen error happened, tell the user to report it to https://ipinfo.io/",
+            "suggestion": "An unexpected error happened, tell the user to contact IPinfo support at support@ipinfo.io",
         }
 
     async def test_partial_error_still_returns_good_ips(
@@ -310,7 +310,7 @@ class TestLookupErrors:
         assert result["errors"]["1.1.1.1"] == {
             "code": "RATE_LIMITED",
             "message": "You've reached your limit on this API",
-            "suggestion": "Tell the user they can upgrade their tier at https://ipinfo.io/pricing",
+            "suggestion": "The user's IPinfo plan has reached its request limit, try again later. The limits of each plan are listed at https://ipinfo.io/pricing",
         }
 
     async def test_403_returns_access_denied(
@@ -328,7 +328,7 @@ class TestLookupErrors:
 
         assert result["code"] == "ACCESS_DENIED"
         assert result["message"] == "You don't have access to lookup."
-        assert result["suggestion"] == "Tell the user they can get access by upgrading at https://ipinfo.io/pricing"
+        assert result["suggestion"] == "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing"
 
     async def test_401_returns_invalid_token(
         self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
@@ -363,7 +363,41 @@ class TestLookupErrors:
 
         assert result["code"] == "RATE_LIMITED"
         assert result["message"] == "Rate limit exceeded."
-        assert result["suggestion"] == "Tell the user they can upgrade their tier at https://ipinfo.io/pricing"
+        assert result["suggestion"] == "The user's IPinfo plan has reached its request limit, try again later. The limits of each plan are listed at https://ipinfo.io/pricing"
+
+    async def test_5xx_returns_api_error_with_retry_suggestion(
+        self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/batch",
+            method="POST",
+            status_code=503,
+        )
+        ctx = make_context(client, cache)
+        result = await ipinfo_lookup(
+            ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
+        )
+
+        assert result["code"] == "API_ERROR"
+        assert result["message"] == "IPinfo API returned status 503."
+        assert result["suggestion"] == "The IPinfo API is having a temporary problem, try the request again in a moment"
+
+    async def test_other_4xx_returns_api_error_with_report_suggestion(
+        self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/batch",
+            method="POST",
+            status_code=400,
+        )
+        ctx = make_context(client, cache)
+        result = await ipinfo_lookup(
+            ips=["8.8.8.8"], detailed=False, page=1, page_size=5, ctx=ctx
+        )
+
+        assert result["code"] == "API_ERROR"
+        assert result["message"] == "IPinfo API returned status 400."
+        assert result["suggestion"] == "An unexpected error happened, tell the user to contact IPinfo support at support@ipinfo.io"
 
     async def test_no_token_returns_error(
         self, cache: IPCache, httpx_mock: HTTPXMock

@@ -77,7 +77,7 @@ class TestQuotaErrors:
 
         assert result["code"] == "ACCESS_DENIED"
         assert result["message"] == "You don't have access to quota."
-        assert result["suggestion"] == "Tell the user they can get access by upgrading at https://ipinfo.io/pricing"
+        assert result["suggestion"] == "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing"
 
     async def test_401_returns_invalid_token(
         self, client: IPinfoClient, cache: IPCache, httpx_mock: HTTPXMock

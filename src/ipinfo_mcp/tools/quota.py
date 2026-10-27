@@ -41,6 +41,7 @@ def register_quota(mcp: FastMCP) -> None:
     """Register the ipinfo_quota tool with the MCP server."""
     _ = mcp.tool(
         annotations=ToolAnnotations(
+            title="API Quota",
             read_only_hint=True,
             destructive_hint=False,
             idempotent_hint=True,

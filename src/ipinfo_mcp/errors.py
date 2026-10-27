@@ -38,11 +38,17 @@ _MESSAGE_ERROR_CODES_MAPPING: list[tuple[str, ErrorCode]] = [
 ]
 
 _SUGGESTIONS: dict[ErrorCode, str] = {
-    "ACCESS_DENIED": "Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
-    "RATE_LIMITED": "Tell the user they can upgrade their tier at https://ipinfo.io/pricing",
+    "ACCESS_DENIED": (
+        "The user's IPinfo plan doesn't include this data. "
+        "The data each plan includes is listed at https://ipinfo.io/pricing"
+    ),
+    "RATE_LIMITED": (
+        "The user's IPinfo plan has reached its request limit, try again later. "
+        "The limits of each plan are listed at https://ipinfo.io/pricing"
+    ),
     "INVALID_TOKEN": "Tell the user to check their token at https://ipinfo.io/account/token",
     "NO_TOKEN": "The user didn't set IPINFO_TOKEN. They can get a free token at https://ipinfo.io/signup",
-    "UNKNOWN": "An unforseen error happened, tell the user to report it to https://ipinfo.io/",
+    "UNKNOWN": "An unexpected error happened, tell the user to contact IPinfo support at support@ipinfo.io",
 }
 
 
@@ -105,19 +111,24 @@ def handle_api_error(
         return ErrorResponse(
             code="ACCESS_DENIED",
             message=message,
-            suggestion="Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
+            suggestion=_SUGGESTIONS["ACCESS_DENIED"],
         )
 
     if status == 429:
         return ErrorResponse(
             code="RATE_LIMITED",
             message="Rate limit exceeded.",
-            suggestion="Tell the user they can upgrade their tier at https://ipinfo.io/pricing",
+            suggestion=_SUGGESTIONS["RATE_LIMITED"],
         )
 
     return ErrorResponse(
         code="API_ERROR",
         message=f"IPinfo API returned status {status}.",
+        suggestion=(
+            "The IPinfo API is having a temporary problem, try the request again in a moment"
+            if status >= 500
+            else _SUGGESTIONS["UNKNOWN"]
+        ),
     )
 
 
