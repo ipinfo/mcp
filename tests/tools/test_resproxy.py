@@ -107,7 +107,7 @@ class TestResproxyErrors:
         assert result["errors"]["8.8.8.8"] == {
             "code":"ACCESS_DENIED",
             "message": "Token does not have access to this API",
-            "suggestion": "Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
+            "suggestion": "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing",
         }
 
     async def test_per_key_error_is_not_cached(
@@ -148,7 +148,7 @@ class TestResproxyErrors:
         assert result["errors"]["8.8.8.8"] == {
             "code": "UNKNOWN",
             "message": "The server exploded",
-            "suggestion": "An unforseen error happened, tell the user to report it to https://ipinfo.io/",
+            "suggestion": "An unexpected error happened, tell the user to contact IPinfo support at support@ipinfo.io",
         }
 
 
@@ -173,7 +173,7 @@ class TestResproxyErrors:
         assert result["errors"]["8.8.8.8"] == {
             "code": "ACCESS_DENIED",
             "message": "Token does not have access to this API",
-            "suggestion": "Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
+            "suggestion": "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing",
         }
 
     async def test_403_returns_access_denied(
@@ -190,7 +190,7 @@ class TestResproxyErrors:
         )
 
         assert result["message"] == "You don't have access to residential proxy detection."
-        assert result["suggestion"] == "Tell the user they can get access by upgrading at https://ipinfo.io/pricing"
+        assert result["suggestion"] == "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing"
         assert result["code"] == "ACCESS_DENIED"
 
     async def test_no_token_returns_error(

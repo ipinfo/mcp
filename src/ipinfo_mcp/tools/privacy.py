@@ -52,7 +52,7 @@ async def ipinfo_check_privacy(
     Returns privacy flags for each IP: whether it is anonymous, using a VPN, proxy,
     relay, or Tor, and whether it is an anycast, hosting, mobile, or satellite address.
 
-    Requires a paid API token. Results are paginated.
+    Requires an IPinfo plan that includes privacy detection. Results are paginated.
 
     If the API reports an error for specific IPs, those IPs are listed in errors
     with the reason and left out of results. Do not treat a missing result as
@@ -152,6 +152,7 @@ def register_privacy(mcp: FastMCP) -> None:
     """Register the ipinfo_check_privacy tool with the MCP server."""
     _ = mcp.tool(
         annotations=ToolAnnotations(
+            title="Privacy Detection",
             read_only_hint=True,
             destructive_hint=False,
             idempotent_hint=True,

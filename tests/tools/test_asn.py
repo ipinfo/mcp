@@ -142,7 +142,7 @@ class TestAsnErrors:
         assert result["errors"]["8.8.8.8"] == {
             "code": "ACCESS_DENIED",
             "message": "Token does not have access to this API",
-            "suggestion": "Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
+            "suggestion": "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing",
         }
 
     async def test_per_key_error_is_not_cached(
@@ -179,7 +179,7 @@ class TestAsnErrors:
         assert result["errors"]["8.8.8.8"] == {
             "code": "UNKNOWN",
             "message": "The server exploded",
-            "suggestion": "An unforseen error happened, tell the user to report it to https://ipinfo.io/",
+            "suggestion": "An unexpected error happened, tell the user to contact IPinfo support at support@ipinfo.io",
         }
 
     async def test_partial_error_still_returns_good_ips(
@@ -203,7 +203,7 @@ class TestAsnErrors:
         assert result["errors"]["1.1.1.1"] == {
             "code": "ACCESS_DENIED",
             "message": "Token does not have access to this API",
-            "suggestion": "Tell the user they can get access by upgrading at https://ipinfo.io/pricing",
+            "suggestion": "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing",
         }
 
     async def test_403_returns_access_denied(
@@ -220,7 +220,7 @@ class TestAsnErrors:
         )
 
         assert result["message"] == "You don't have access to ASN lookup."
-        assert result["suggestion"] == "Tell the user they can get access by upgrading at https://ipinfo.io/pricing"
+        assert result["suggestion"] == "The user's IPinfo plan doesn't include this data. The data each plan includes is listed at https://ipinfo.io/pricing"
         assert result["code"] == "ACCESS_DENIED"
 
     async def test_no_token_returns_error(

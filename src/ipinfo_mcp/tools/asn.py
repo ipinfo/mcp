@@ -49,7 +49,7 @@ async def ipinfo_asn(
                 "Which IPinfo endpoint to query. Leave false to use the Lite endpoint, which "
                 "returns the ASN, name, and domain. Set to true to use the full lookup endpoint, "
                 "which also returns the network type (isp, hosting, business, education) and when "
-                "the AS record last changed; it requires a token whose plan includes that data, "
+                "the AS record last changed; it requires an IPinfo plan that includes that data, "
                 "otherwise the call fails with ACCESS_DENIED."
             )
         ),
@@ -159,6 +159,7 @@ def register_asn(mcp: FastMCP) -> None:
     """Register the ipinfo_asn tool with the MCP server."""
     _ = mcp.tool(
         annotations=ToolAnnotations(
+            title="ASN Lookup",
             read_only_hint=True,
             destructive_hint=False,
             idempotent_hint=True,
