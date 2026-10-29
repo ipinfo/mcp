@@ -10,7 +10,7 @@ from typing import TypedDict, cast
 import uvicorn
 from fastmcp import FastMCP
 from fastmcp.server.auth import MultiAuth
-from starlette.responses import HTMLResponse, JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ipinfo_mcp.auth import create_auth
@@ -132,16 +132,23 @@ class LandingPageMiddleware:
 
     MCP clients use POST or GET with Accept: text/event-stream,
     so a plain GET with Accept: text/html is always a browser.
+
+    Also serves the token OpenAI checks to verify we own the domain, when one is set.
     """
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, *, openai_apps_challenge: str | None = None) -> None:
         self.app = app
+        self.openai_apps_challenge = openai_apps_challenge
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http" and scope["method"] == "GET":
             path = cast(str, scope["path"])
             if path in ("/.healthz/is-ready", "/.healthz/is-alive"):
                 response = JSONResponse({"status": "ok", "version": SERVER_VERSION})
+                await response(scope, receive, send)
+                return
+            if path == "/.well-known/openai-apps-challenge" and self.openai_apps_challenge:
+                response = PlainTextResponse(self.openai_apps_challenge)
                 await response(scope, receive, send)
                 return
             if path == "/":
@@ -160,7 +167,7 @@ def create_app() -> ASGIApp:
         path="/",
         stateless_http=True,
     )
-    return LandingPageMiddleware(mcp_app)
+    return LandingPageMiddleware(mcp_app, openai_apps_challenge=os.environ.get("IPINFO_OPENAI_APPS_CHALLENGE"))
 
 
 app = create_app()

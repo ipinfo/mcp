@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ipinfo",
+  "version": "1.0.0",
+  "description": "IP address intelligence from IPinfo: geolocation, network ownership, and VPN, proxy, Tor, and residential proxy detection.",
+  "author": {
+    "name": "IPinfo",
+    "email": "support@ipinfo.io",
+    "url": "https://ipinfo.io"
+  },
+  "homepage": "https://ipinfo.io/developers/mcp-server",
+  "repository": "https://github.com/ipinfo/mcp",
+  "license": "Apache-2.0",
+  "keywords": [
+    "ip",
+    "geolocation",
+    "asn",
+    "vpn",
+    "proxy",
+    "tor",
+    "residential-proxy",
+    "security"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "IPinfo",
+        "shortDescription": "IP geolocation and privacy",
+        "longDescription": "Look up IP addresses with IPinfo data. Find where an IP is located, down to the city, region, coordinates, timezone, and postal code. See which company or network owns it, with its ASN, organization name, domain, and network type. Check whether it belongs to a VPN, proxy, relay, or Tor exit node, whether it is a known residential proxy, and whether it is a hosting, anycast, mobile, or satellite address. You can also check your IPinfo API usage and remaining quota.\n\nUseful for security and fraud investigations, log and traffic analysis, and any question about where traffic comes from. Lookups accept many IPs at once, IPv4 or IPv6.\n\nSign in with your IPinfo account to connect. Every account includes country, continent, and ASN data. City-level geolocation, privacy detection, and residential proxy detection are available when your IPinfo plan includes them. Private, reserved, and bogon addresses aren't looked up. All tools are read-only and never change your account.",
+        "developerName": "IPinfo",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Geolocate IP addresses",
+          "Identify network owners and ASNs",
+          "Detect VPNs, proxies, relays, and Tor",
+          "Detect residential proxies",
+          "Check API usage and quota"
+        ],
+        "websiteURL": "https://ipinfo.io",
+        "supportURL": "https://support.ipinfo.io/",
+        "privacyPolicyURL": "https://ipinfo.io/privacy-policy",
+        "termsOfServiceURL": "https://ipinfo.io/terms-of-service",
+        "defaultPrompt": [
+          "Where is the IP address 8.8.8.8 located?",
+          "Is 185.220.101.1 a VPN, proxy, or Tor exit node?",
+          "Which company operates the network for 1.1.1.1?"
+        ],
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIcon": "./assets/logo.png",
+        "composerIconDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Geolocate an IP address",
+              "prompt": "Where is the IP address 8.8.8.8 located? Include the city and timezone.",
+              "tools_triggered": "ipinfo_geolocate",
+              "expected_behavior": "Reports that 8.8.8.8 is in Mountain View, California, United States, with the America/Los_Angeles timezone."
+            },
+            {
+              "description": "Identify who owns a network",
+              "prompt": "Which company operates the network for 1.1.1.1?",
+              "tools_triggered": "ipinfo_asn",
+              "expected_behavior": "Reports that 1.1.1.1 belongs to AS13335, Cloudflare, Inc. (cloudflare.com)."
+            },
+            {
+              "description": "Detect anonymity services",
+              "prompt": "Is 185.220.101.1 a VPN, proxy, or Tor exit node?",
+              "tools_triggered": "ipinfo_check_privacy",
+              "expected_behavior": "Reports that 185.220.101.1 is anonymous and flagged as a Tor exit node, listing which of the VPN, proxy, relay, and Tor flags are set."
+            },
+            {
+              "description": "Check for a residential proxy",
+              "prompt": "Is 8.8.8.8 a residential proxy?",
+              "tools_triggered": "ipinfo_check_residential_proxy",
+              "expected_behavior": "Reports that 8.8.8.8 is not a known residential proxy."
+            },
+            {
+              "description": "Check API usage",
+              "prompt": "How many IPinfo API requests have I used this month, and how many do I have left?",
+              "tools_triggered": "ipinfo_quota",
+              "expected_behavior": "Reports the requests used today and this month, the plan limit, and the remaining requests for the connected account."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Changing firewall or network settings is out of scope; the plugin is read-only and should explain it can't block addresses.",
+              "prompt": "Block the IP address 203.0.113.5 on my firewall."
+            },
+            {
+              "description": "IP data doesn't identify people; the plugin should decline to find a person's identity or home address.",
+              "prompt": "Find the name and home address of the person using the IP 8.8.8.8."
+            },
+            {
+              "description": "The request has nothing to do with IP addresses, so no IPinfo tool should be called.",
+              "prompt": "Write a Python function that sorts a list of numbers."
+            }
+          ]
+        },
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Initial release: IP geolocation, network ownership, privacy and residential proxy detection, and API quota checks."
+      }
+    }
+  }
+}

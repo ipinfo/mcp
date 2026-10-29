@@ -122,18 +122,19 @@ Takes no parameters. Returns `token` (omitted when connected with OAuth), `reque
 
 The server is configured through environment variables:
 
-| Variable                  | Default                          | Description                                                             |
-| ------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
-| `IPINFO_TOKEN`            |                                  | API token (stdio transport; over HTTP the token comes from the request) |
-| `IPINFO_API_BASE_URL`     | `https://api.ipinfo.io`          | Base URL for `api.ipinfo.io` endpoints                                  |
-| `IPINFO_LEGACY_BASE_URL`  | `https://ipinfo.io`              | Base URL for legacy `ipinfo.io` endpoints (e.g. `/me`)                  |
-| `IPINFO_CACHE_TTL`        | `3600`                           | Seconds a cached IP result stays fresh                                  |
-| `IPINFO_TRANSPORT`        | `stdio`                          | Transport type (`stdio` or `http`)                                      |
-| `HOST`                    | `0.0.0.0`                        | HTTP host (only for `http` transport)                                   |
-| `PORT`                    | `8000`                           | HTTP port (only for `http` transport)                                   |
-| `IPINFO_OAUTH_ISSUER`     |                                  | OAuth issuer whose access tokens are accepted; OAuth is off when unset  |
-| `IPINFO_MCP_RESOURCE_URL` |                                  | Public URL of this server, required with `IPINFO_OAUTH_ISSUER`          |
-| `IPINFO_OAUTH_JWKS_URI`   | `<issuer>/.well-known/jwks.json` | Where the issuer publishes its signing keys                             |
+| Variable                       | Default                          | Description                                                                           |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------- |
+| `IPINFO_TOKEN`                 |                                  | API token (stdio transport; over HTTP the token comes from the request)               |
+| `IPINFO_API_BASE_URL`          | `https://api.ipinfo.io`          | Base URL for `api.ipinfo.io` endpoints                                                |
+| `IPINFO_LEGACY_BASE_URL`       | `https://ipinfo.io`              | Base URL for legacy `ipinfo.io` endpoints (e.g. `/me`)                                |
+| `IPINFO_CACHE_TTL`             | `3600`                           | Seconds a cached IP result stays fresh                                                |
+| `IPINFO_TRANSPORT`             | `stdio`                          | Transport type (`stdio` or `http`)                                                    |
+| `HOST`                         | `0.0.0.0`                        | HTTP host (only for `http` transport)                                                 |
+| `PORT`                         | `8000`                           | HTTP port (only for `http` transport)                                                 |
+| `IPINFO_OAUTH_ISSUER`          |                                  | OAuth issuer whose access tokens are accepted; OAuth is off when unset                |
+| `IPINFO_MCP_RESOURCE_URL`      |                                  | Public URL of this server, required with `IPINFO_OAUTH_ISSUER`                        |
+| `IPINFO_OAUTH_JWKS_URI`        | `<issuer>/.well-known/jwks.json` | Where the issuer publishes its signing keys                                           |
+| `IPINFO_OPENAI_APPS_CHALLENGE` |                                  | Token served at `/.well-known/openai-apps-challenge` for OpenAI's domain verification |
 
 With the `http` transport, each request authenticates with its own `Authorization: Bearer <token>` header.
 
