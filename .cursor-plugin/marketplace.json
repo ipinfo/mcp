@@ -1,0 +1,17 @@
+{
+  "name": "ipinfo",
+  "owner": {
+    "name": "IPinfo",
+    "email": "support@ipinfo.io"
+  },
+  "metadata": {
+    "description": "Official IPinfo plugins"
+  },
+  "plugins": [
+    {
+      "name": "ipinfo",
+      "source": "./plugins/ipinfo",
+      "description": "IP address intelligence from IPinfo: geolocation, network ownership, and VPN, proxy, Tor, and residential proxy detection."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "ipinfo",
+  "displayName": "IPinfo",
+  "version": "1.0.0",
+  "description": "IP address intelligence from IPinfo: geolocation, network ownership, and VPN, proxy, Tor, and residential proxy detection.",
+  "author": {
+    "name": "IPinfo",
+    "email": "support@ipinfo.io"
+  },
+  "homepage": "https://ipinfo.io/developers/mcp-server",
+  "repository": "https://github.com/ipinfo/mcp",
+  "license": "Apache-2.0",
+  "keywords": ["ip", "geolocation", "asn", "vpn", "proxy", "tor", "residential-proxy", "security"],
+  "logo": "assets/logo.png",
+  "mcpServers": {
+    "ipinfo": {
+      "url": "https://mcp.ipinfo.io/"
+    }
+  }
+}
