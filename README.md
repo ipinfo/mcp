@@ -8,7 +8,6 @@ For the full guide, see the [official documentation](https://ipinfo.io/developer
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ipinfo/mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/ipinfo/mcp)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14811/badge)](https://www.bestpractices.dev/projects/14811)
-[![smithery badge](https://smithery.ai/badge/ipinfo/mcp-server)](https://smithery.ai/servers/ipinfo/mcp-server)
 
 <!-- mcp-name: io.github.ipinfo/mcp -->
 
