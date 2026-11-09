@@ -13,6 +13,7 @@ from fastmcp.server.auth import MultiAuth
 from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from ipinfo_mcp.aauth.app import with_aauth
 from ipinfo_mcp.auth import create_auth
 from ipinfo_mcp.cache import DEFAULT_TTL, IPCache
 from ipinfo_mcp.client import IPinfoClient
@@ -163,9 +164,15 @@ class LandingPageMiddleware:
 
 def create_app() -> ASGIApp:
     """Create the ASGI app: landing page on GET /, MCP on POST /."""
+    settings = _settings()
     mcp_app = mcp.http_app(
         path="/",
         stateless_http=True,
+    )
+    mcp_app = with_aauth(
+        mcp_app,
+        api_base_url=settings["api_base_url"],
+        cache_ttl=settings["cache_ttl"],
     )
     return LandingPageMiddleware(mcp_app, openai_apps_challenge=os.environ.get("IPINFO_OPENAI_APPS_CHALLENGE"))
 

@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -376,6 +376,18 @@ wheels = [
 ]
 
 [[package]]
+name = "http-sf"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/d1/af2d7665a9cb295f95a4125826a45443bd6f554946d1ca9876cf3ef1dc3b/http_sf-1.5.0.tar.gz", hash = "sha256:b54cfa55f428dd7cb1cfcc6fbd5020f967060df136ffa37cab5b9798f647612f", size = 55553, upload-time = "2026-10-23T01:43:58.992Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/4a/5a1d3b0fcb58cbd827a968f69d6139c1af419dd008f2c4caf8a8ab78b7bd/http_sf-1.5.0-py3-none-any.whl", hash = "sha256:031282bd376549b04fcaa397d9ef351acdc5bd383435cccd1d8ea17b1661c80e", size = 27696, upload-time = "2026-10-23T01:43:57.816Z" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -465,6 +477,7 @@ version = "0.2.3"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
+    { name = "http-sf" },
     { name = "httpx" },
     { name = "joserfc" },
     { name = "pydantic" },
@@ -482,6 +495,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=4.0.9" },
+    { name = "http-sf", specifier = ">=1.5.0" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "joserfc", specifier = ">=1.7.5" },
     { name = "pydantic", specifier = ">=2.13.5" },

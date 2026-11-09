@@ -17,6 +17,7 @@ classifiers = [
 ]
 dependencies = [
     "fastmcp>=4.0.9",
+    "http-sf>=1.5.0",
     "httpx>=0.28.0",
     "joserfc>=1.7.5",
     "pydantic>=2.13.5",
