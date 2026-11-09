@@ -16,7 +16,6 @@ from tests.aauth_helpers import (
     OTHER_AGENT_KEY,
     OTHER_PROVIDER_KEY,
     P256_AGENT_KEY,
-    PROVIDER_KEY,
     FakeFetch,
     agent_token,
     asgi_scope,
