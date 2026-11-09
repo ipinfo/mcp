@@ -57,6 +57,7 @@ The server is also listed on [LightNow](https://lightnow.ai/servers/io.github.ip
 | `ipinfo_check_privacy`           | VPN, proxy, relay, Tor, hosting, anycast, mobile, satellite flags | Paid plan                             |
 | `ipinfo_check_residential_proxy` | Residential proxy detection                                       | Residential Proxy access              |
 | `ipinfo_quota`                   | API usage and remaining quota                                     | Any                                   |
+| `ipinfo_lite_lookup`             | Lite IP data, for agents without an account                       | None; only offered to AAuth agents    |
 
 Tools that lack access for the token's plan return an `ACCESS_DENIED` error.
 
@@ -117,6 +118,10 @@ Returns, per IP: `ip` and `is_residential_proxy`. For residential proxies, also 
 
 Takes no parameters. Returns `token` (omitted when connected with OAuth), `requests` (`day`, `month`, `limit`, `remaining`), and per-feature quotas under `features`.
 
+### `ipinfo_lite_lookup`
+
+Only offered to agents that sign their requests with [AAuth](https://www.aauth.dev/), who get it in place of the tools above. Takes the common parameters and returns the [Lite](https://ipinfo.io/developers/lite-api) data for each IP: `ip`, `asn`, `as_name`, `as_domain`, `country`, `country_code`, `continent`, `continent_code`. When the daily limit for lookups without an account is reached, it returns a `RATE_LIMITED` error.
+
 ## Configuration
 
 The server is configured through environment variables:
@@ -134,10 +139,14 @@ The server is configured through environment variables:
 | `IPINFO_MCP_RESOURCE_URL`      |                                  | Public URL of this server, required with `IPINFO_OAUTH_ISSUER`                        |
 | `IPINFO_OAUTH_JWKS_URI`        | `<issuer>/.well-known/jwks.json` | Where the issuer publishes its signing keys                                           |
 | `IPINFO_OPENAI_APPS_CHALLENGE` |                                  | Token served at `/.well-known/openai-apps-challenge` for OpenAI's domain verification |
+| `IPINFO_AAUTH_PROVIDER_KEY`    |                                  | Ed25519 private key, PEM encoded, for AAuth; AAuth is off when unset                  |
+| `IPINFO_AAUTH_ISSUER`          |                                  | Public URL of this server for AAuth, required with the key                            |
 
 With the `http` transport, each request authenticates with its own `Authorization: Bearer <token>` header.
 
 Setting `IPINFO_OAUTH_ISSUER` turns on OAuth for the `http` transport. The server then advertises the issuer at `/.well-known/oauth-protected-resource`, answers requests without a valid credential with `401 Unauthorized`, and verifies access tokens against the issuer's signing keys. A verified access token is sent to the IPinfo API in place of an API token. API tokens keep working as before.
+
+Setting `IPINFO_AAUTH_PROVIDER_KEY` turns on AAuth for the `http` transport. Generate a key with `openssl genpkey -algorithm ed25519`. The server then describes itself as an AAuth resource at `/.well-known/aauth-resource.json`, under the origin of `IPINFO_MCP_RESOURCE_URL` (or `IPINFO_AAUTH_ISSUER` when unset), pointing agents at `/aauth`. That endpoint serves a separate MCP server whose only tool is `ipinfo_lite_lookup`. Listing its tools needs no signature, since agents discover tools before signing a call, but calling one needs an AAuth signature; a refused one gets a `401 Unauthorized` naming the reason in its `Signature-Error` header. When `IPINFO_MCP_RESOURCE_URL` is set, only signatures made for that host are accepted. The server sends Lite lookups to the IPinfo API signed as its own agent, `aauth:ipinfo-mcp@<issuer host>`, and publishes the documents the API verifies them with at `/.well-known/aauth-agent.json` and `/.well-known/aauth-jwks.json`. `IPINFO_AAUTH_ISSUER` must be the server's public URL: `https`, no port, path, or trailing slash. The main endpoint is unaffected.
 
 ## Feedback
 
