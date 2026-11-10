@@ -12,7 +12,6 @@ from ipinfo_mcp.aauth.protocol import (
     AGENT_METADATA_DOCUMENT,
     AGENT_TOKEN_TYPE,
     HTTPS_PREFIX,
-    REQUIRED_COMPONENTS,
     is_server_identifier,
     sign,
     signature_base,
@@ -31,6 +30,11 @@ TOKEN_LIFETIME = 3600
 TOKEN_REFRESH_MARGIN = 300
 
 SIGNATURE_LABEL = "sig"
+
+# Where requests to the IPinfo API relay the agent this server acts for: that agent's own
+# agent token. AAuth doesn't define relaying an agent's identity, so this is IPinfo's own
+# convention, honored by the API only from the intermediaries it trusts.
+AGENT_TOKEN_HEADER = "ipinfo-agent-token"
 
 
 class AgentProvider:
@@ -121,18 +125,21 @@ class AgentProvider:
 
         Pass it as a request's httpx auth: httpx calls it once the request is built, so the
         authority and path signed are exactly the ones sent, IPv6 addresses included.
+
+        When the request relays the agent this server acts for, in AGENT_TOKEN_HEADER,
+        the signature covers that header too, so it can't be swapped on the way.
         """
         signature_key = ser({SIGNATURE_LABEL: (Token("jwt"), {"jwt": self.agent_token()})})
-        signature_params = ser_innerlist(([(name, {}) for name in REQUIRED_COMPONENTS], {"created": int(time.time())}))
-        base = signature_base(
-            [
-                ("@method", request.method),
-                ("@authority", request.headers["host"].lower()),
-                ("@path", request.url.raw_path.split(b"?", 1)[0].decode() or "/"),
-                ("signature-key", signature_key),
-            ],
-            signature_params,
-        )
+        components = [
+            ("@method", request.method),
+            ("@authority", request.headers["host"].lower()),
+            ("@path", request.url.raw_path.split(b"?", 1)[0].decode() or "/"),
+            ("signature-key", signature_key),
+        ]
+        if AGENT_TOKEN_HEADER in request.headers:
+            components.append((AGENT_TOKEN_HEADER, request.headers[AGENT_TOKEN_HEADER].strip()))
+        signature_params = ser_innerlist(([(name, {}) for name, _ in components], {"created": int(time.time())}))
+        base = signature_base(components, signature_params)
         signature = sign(base.encode(), self._agent_key, ALGORITHM)
 
         request.headers["Signature-Key"] = signature_key

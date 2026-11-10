@@ -146,7 +146,13 @@ With the `http` transport, each request authenticates with its own `Authorizatio
 
 Setting `IPINFO_OAUTH_ISSUER` turns on OAuth for the `http` transport. The server then advertises the issuer at `/.well-known/oauth-protected-resource`, answers requests without a valid credential with `401 Unauthorized`, and verifies access tokens against the issuer's signing keys. A verified access token is sent to the IPinfo API in place of an API token. API tokens keep working as before.
 
-Setting `IPINFO_AAUTH_PROVIDER_KEY` turns on AAuth for the `http` transport. Generate a key with `openssl genpkey -algorithm ed25519`. The server then describes itself as an AAuth resource at `/.well-known/aauth-resource.json`, under the origin of `IPINFO_MCP_RESOURCE_URL` (or `IPINFO_AAUTH_ISSUER` when unset), pointing agents at `/aauth`. That endpoint serves a separate MCP server whose only tool is `ipinfo_lite_lookup`. Listing its tools needs no signature, since agents discover tools before signing a call, but calling one needs an AAuth signature; a refused one gets a `401 Unauthorized` naming the reason in its `Signature-Error` header. When `IPINFO_MCP_RESOURCE_URL` is set, only signatures made for that host are accepted. The server sends Lite lookups to the IPinfo API signed as its own agent, `aauth:ipinfo-mcp@<issuer host>`, and publishes the documents the API verifies them with at `/.well-known/aauth-agent.json` and `/.well-known/aauth-jwks.json`. `IPINFO_AAUTH_ISSUER` must be the server's public URL: `https`, no port, path, or trailing slash. The main endpoint is unaffected.
+Setting `IPINFO_AAUTH_PROVIDER_KEY` turns on AAuth for the `http` transport, so agents that sign their requests with AAuth can use `ipinfo_lite_lookup` without an IPinfo account. Generate the key with `openssl genpkey -algorithm ed25519`, and give every replica the same one. `IPINFO_AAUTH_ISSUER` must be the server's public URL: `https`, no port, path, or trailing slash. With AAuth on, the server also serves:
+
+- `/aauth`, the MCP endpoint for AAuth agents, whose only tool is `ipinfo_lite_lookup`. Listing its tools needs no signature; calling one needs an AAuth signature. When `IPINFO_MCP_RESOURCE_URL` is set, only signatures made for that host are accepted.
+- `/.well-known/aauth-resource.json`, which points agents at `/aauth`. It names the origin of `IPINFO_MCP_RESOURCE_URL`, or of `IPINFO_AAUTH_ISSUER` when that is unset.
+- `/.well-known/aauth-agent.json` and `/.well-known/aauth-jwks.json`, the documents of the server's own AAuth agent, `aauth:ipinfo-mcp@<issuer host>`.
+
+The main endpoint is unaffected.
 
 ## Feedback
 
