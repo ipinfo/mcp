@@ -144,6 +144,32 @@ class TestSign:
         agent_jwk = decode_token(provider, provider.agent_token())[1]["cnf"]["jwk"]
         assert verify(base.encode(), signature, agent_jwk)
 
+    def test_signature_covers_the_relayed_agent(self) -> None:
+        provider = make_agent_provider(ISSUER)
+
+        request = provider.sign(
+            httpx.Request(
+                "GET", "https://api.ipinfo.io/lite/8.8.8.8", headers={"IPinfo-Agent-Token": "caller.agent.token"}
+            )
+        )
+
+        signature_key = request.headers["signature-key"]
+        params = request.headers["signature-input"].removeprefix("sig=")
+        assert params.startswith('("@method" "@authority" "@path" "signature-key" "ipinfo-agent-token")')
+        base = "\n".join(
+            [
+                '"@method": GET',
+                '"@authority": api.ipinfo.io',
+                '"@path": /lite/8.8.8.8',
+                f'"signature-key": {signature_key}',
+                '"ipinfo-agent-token": caller.agent.token',
+                f'"@signature-params": {params}',
+            ]
+        )
+        signature = parse(request.headers["signature"].encode(), tltype="dictionary")["sig"][0]
+        agent_jwk = decode_token(provider, provider.agent_token())[1]["cnf"]["jwk"]
+        assert verify(base.encode(), signature, agent_jwk)
+
     def test_sends_no_token(self) -> None:
         provider = make_agent_provider(ISSUER)
 

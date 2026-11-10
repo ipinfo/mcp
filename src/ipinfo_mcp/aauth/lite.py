@@ -10,7 +10,7 @@ from fastmcp import Context, FastMCP
 from fastmcp.server.dependencies import get_http_request
 from mcp.types import ToolAnnotations
 
-from ipinfo_mcp.aauth.agent import AgentProvider
+from ipinfo_mcp.aauth.agent import AGENT_TOKEN_HEADER, AgentProvider
 from ipinfo_mcp.aauth.resource import Agent, scope_agent
 from ipinfo_mcp.cache import CachedResponse, IPCache
 from ipinfo_mcp.client import USER_AGENT
@@ -66,17 +66,21 @@ class LiteClient:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
         return self._http
 
-    async def lookup(self, ips: list[str]) -> dict[str, LiteResponse]:
+    async def lookup(self, ips: list[str], *, agent_token: str | None = None) -> dict[str, LiteResponse]:
         """
         Look up IPs on the Lite endpoint. Returns each IP's response, keyed by the IP.
+
+        agent_token is the agent token of the agent the lookups are for. It is relayed in
+        AGENT_TOKEN_HEADER, so the API can attribute them to that agent rather than to us.
 
         HTTP errors (401, 429, etc.) are propagated as httpx.HTTPStatusError, the first one that happens.
         """
         semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+        headers = {AGENT_TOKEN_HEADER: agent_token} if agent_token else None
 
         async def fetch(ip: str) -> LiteResponse:
             async with semaphore:
-                response = await self.http.get(f"/lite/{ip}")
+                response = await self.http.get(f"/lite/{ip}", headers=headers)
             if response.status_code == 401:
                 # The API names what it refused in our signature, that's a fault on our side
                 logger.warning("GET /lite refused signature_error=%s", response.headers.get("signature-error"))
@@ -189,7 +193,8 @@ async def ipinfo_lite_lookup(
     errors: dict[str, ErrorResponse] = {}
     if misses:
         try:
-            fetched = await client.lookup(misses)
+            # Relaying the calling agent lets the API tell agents apart, though they all reach it through us
+            fetched = await client.lookup(misses, agent_token=agent.token if agent else None)
         except httpx.HTTPStatusError as exc:
             logger.warning("ipinfo_lite_lookup api_error status=%d", exc.response.status_code)
             return handle_lite_error(exc)

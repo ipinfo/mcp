@@ -65,6 +65,26 @@ class TestLiteClient:
             assert "Authorization" not in request.headers
             assert request.headers["User-Agent"] == USER_AGENT
 
+    async def test_relays_the_agent_it_looks_up_for(self, client: LiteClient, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(url=f"{BASE_URL}/lite/8.8.8.8", method="GET", json=LITE_8888)
+
+        await client.lookup(["8.8.8.8"], agent_token="caller.agent.token")
+
+        request = httpx_mock.get_request()
+        assert request is not None
+        assert request.headers["IPinfo-Agent-Token"] == "caller.agent.token"
+        assert '"ipinfo-agent-token"' in request.headers["Signature-Input"]
+
+    async def test_relays_nothing_without_an_agent(self, client: LiteClient, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(url=f"{BASE_URL}/lite/8.8.8.8", method="GET", json=LITE_8888)
+
+        await client.lookup(["8.8.8.8"])
+
+        request = httpx_mock.get_request()
+        assert request is not None
+        assert "IPinfo-Agent-Token" not in request.headers
+        assert "ipinfo-agent-token" not in request.headers["Signature-Input"]
+
     @pytest.mark.parametrize("status_code", [401, 403, 429])
     async def test_propagates_errors(self, client: LiteClient, httpx_mock: HTTPXMock, status_code: int) -> None:
         httpx_mock.add_response(url=f"{BASE_URL}/lite/8.8.8.8", method="GET", status_code=status_code)

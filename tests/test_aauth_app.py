@@ -1,3 +1,4 @@
+import base64
 import json
 import time
 from collections.abc import AsyncIterator, Callable
@@ -235,6 +236,12 @@ class TestAgentEndpoint:
 
         assert [tool["name"] for tool in listed["result"]["tools"]] == ["ipinfo_lite_lookup"]
         assert called["result"]["structuredContent"]["result"]["results"] == {"8.8.8.8": LITE_8888}
+        # The API is told which agent the lookup is for
+        lookup = httpx_mock.get_request()
+        assert lookup is not None
+        relayed = lookup.headers["IPinfo-Agent-Token"]
+        claims = json.loads(base64.urlsafe_b64decode(relayed.split(".")[1] + "=="))
+        assert claims["sub"] == AGENT
 
 
 class TestConfiguration:
