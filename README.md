@@ -41,6 +41,16 @@ The server is published on PyPI as [`ipinfo-mcp-server`](https://pypi.org/projec
 
 Download `mcp.mcpb` from the [latest GitHub release](https://github.com/ipinfo/mcp/releases/latest) and open it with Claude Desktop. You'll be asked for your API token during installation.
 
+### Gemini CLI extension
+
+Install the extension, which connects Gemini CLI to the hosted server:
+
+```sh
+gemini extensions install https://github.com/ipinfo/mcp
+```
+
+Then run `/mcp auth ipinfo` in Gemini CLI to sign in with your IPinfo account.
+
 ### MCP Registry
 
 The server is listed in the [MCP Registry](https://registry.modelcontextprotocol.io/) as `io.github.ipinfo/mcp`.
