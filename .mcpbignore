@@ -11,3 +11,4 @@ tests
 Dockerfile
 plugins
 .cursor-plugin
+gemini-extension.json

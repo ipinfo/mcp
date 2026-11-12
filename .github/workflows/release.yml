@@ -40,7 +40,7 @@ jobs:
         run: |
           old=$(uv version --short)
           uv version "$VERSION" --no-sync
-          sed -i "s/\"version\": \"$old\"/\"version\": \"$VERSION\"/" manifest.json server.json
+          sed -i "s/\"version\": \"$old\"/\"version\": \"$VERSION\"/" manifest.json server.json gemini-extension.json
 
       - name: Open pull request
         env:
