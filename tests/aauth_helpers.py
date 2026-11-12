@@ -13,7 +13,7 @@ from starlette.types import ASGIApp, Message, Scope
 
 from ipinfo_mcp.aauth.agent import AgentProvider
 from ipinfo_mcp.aauth.protocol import REQUIRED_COMPONENTS, sign
-from ipinfo_mcp.aauth.resource import Agent
+from ipinfo_mcp.aauth.resource import PersonVerifier
 
 NOW = 1800000000
 
@@ -22,16 +22,20 @@ AGENT_ISSUER = "https://agents.example"
 AGENT = "aauth:assistant@agents.example"
 PROVIDER_KID = "ap-key-1"
 PROVIDER_KEY = OKPKey.generate_key("Ed25519")
-OTHER_PROVIDER_KEY = OKPKey.generate_key("Ed25519")
 AGENT_KEY = OKPKey.generate_key("Ed25519")
 OTHER_AGENT_KEY = OKPKey.generate_key("Ed25519")
 P256_AGENT_KEY = ECKey.generate_key("P-256")
 
-# What the tools find when an agent's signed request verified
-VERIFIED_AGENT = Agent(identifier=AGENT, issuer=AGENT_ISSUER, token="agent.token.jwt")
+# The person server of the people agents call this server for, and one of them
+PERSON_SERVER = "https://person.example"
+PERSON = "person-7f3c"
+PERSON_SERVER_KID = "ps-key-1"
+PERSON_SERVER_KEY = OKPKey.generate_key("Ed25519")
+OTHER_PERSON_SERVER_KEY = OKPKey.generate_key("Ed25519")
 
 # This server, as agents reach it
 MCP_URL = "https://mcp.ipinfo.io/"
+MCP_ORIGIN = "https://mcp.ipinfo.io"
 MCP_AUTHORITY = "mcp.ipinfo.io"
 
 
@@ -43,31 +47,67 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
+def _jwt(header: dict[str, object], claims: dict[str, object], key: OKPKey) -> str:
+    """
+    Build a JWT signed with key. A claim set to None is left out.
+    """
+    claims = {name: value for name, value in claims.items() if value is not None}
+    signing_input = f"{_b64url(json.dumps(header).encode())}.{_b64url(json.dumps(claims).encode())}"
+    return f"{signing_input}.{_b64url(sign(signing_input.encode(), key, 'Ed25519'))}"
+
+
 def agent_token(
     *,
     header: dict[str, object] | None = None,
     claims: dict[str, object] | None = None,
-    provider_key: OKPKey = PROVIDER_KEY,
     agent_key: OKPKey | ECKey = AGENT_KEY,
-    agent_alg: str = "Ed25519",
 ) -> str:
     """
     Build an agent token the way an agent provider issues one. A claim set to None is left out.
     """
-    full_header = {"alg": "Ed25519", "typ": "aa-agent+jwt", "kid": PROVIDER_KID, **(header or {})}
-    full_claims = {
-        "iss": AGENT_ISSUER,
-        "dwk": "aauth-agent.json",
-        "sub": AGENT,
-        "jti": "token-1",
-        "iat": NOW,
-        "exp": NOW + 3600,
-        "cnf": {"jwk": {**agent_key.as_dict(private=False), "alg": agent_alg}},
-        **(claims or {}),
-    }
-    full_claims = {name: value for name, value in full_claims.items() if value is not None}
-    signing_input = f"{_b64url(json.dumps(full_header).encode())}.{_b64url(json.dumps(full_claims).encode())}"
-    return f"{signing_input}.{_b64url(sign(signing_input.encode(), provider_key, 'Ed25519'))}"
+    return _jwt(
+        {"alg": "Ed25519", "typ": "aa-agent+jwt", "kid": PROVIDER_KID, **(header or {})},
+        {
+            "iss": AGENT_ISSUER,
+            "dwk": "aauth-agent.json",
+            "sub": AGENT,
+            "jti": "token-1",
+            "iat": NOW,
+            "exp": NOW + 3600,
+            "ps": PERSON_SERVER,
+            "cnf": {"jwk": {**agent_key.as_dict(private=False), "alg": "Ed25519"}},
+            **(claims or {}),
+        },
+        PROVIDER_KEY,
+    )
+
+
+def person_token(
+    *,
+    header: dict[str, object] | None = None,
+    claims: dict[str, object] | None = None,
+    server_key: OKPKey = PERSON_SERVER_KEY,
+    agent_key: OKPKey | ECKey = AGENT_KEY,
+    agent_alg: str = "Ed25519",
+) -> str:
+    """
+    Build a person token the way a person server issues one for an agent. A claim set to None is left out.
+    """
+    return _jwt(
+        {"alg": "Ed25519", "typ": "aa-person+jwt", "kid": PERSON_SERVER_KID, **(header or {})},
+        {
+            "iss": PERSON_SERVER,
+            "dwk": "aauth-person.json",
+            "sub": PERSON,
+            "aud": MCP_ORIGIN,
+            "jti": "person-token-1",
+            "iat": NOW,
+            "exp": NOW + 3600,
+            "cnf": {"jwk": {**agent_key.as_dict(private=False), "alg": agent_alg}},
+            **(claims or {}),
+        },
+        server_key,
+    )
 
 
 def _component(request: httpx.Request, name: str) -> str:
@@ -98,9 +138,9 @@ def sign_request(
     scheme: str = "jwt",
 ) -> httpx.Request:
     """
-    Sign request the way an AAuth agent does, covering components.
+    Sign request the way an AAuth agent does, presenting jwt, a person token unless given, and covering components.
     """
-    jwt = agent_token() if jwt is None else jwt
+    jwt = person_token() if jwt is None else jwt
     request.headers["Signature-Key"] = ser({label: (Token(scheme), {"jwt": jwt})})
     params = ser_innerlist(([(name, {}) for name in components], {"created": created}))
     lines = [f'"{name}": {_component(request, name)}' for name in components]
@@ -126,22 +166,29 @@ def asgi_scope(request: httpx.Request) -> Scope:
     }
 
 
-def provider_documents(
-    issuer: str = AGENT_ISSUER, provider_key: OKPKey = PROVIDER_KEY, metadata: dict[str, object] | None = None
-) -> dict[str, object]:
+def person_server_documents(metadata: dict[str, object] | None = None) -> dict[str, object]:
     """
-    The documents an agent provider publishes, by URL. metadata overrides members of its metadata document.
+    The documents the person server publishes, by URL. metadata overrides members of its metadata document.
     """
     return {
-        f"{issuer}/.well-known/aauth-agent.json": {
-            "issuer": issuer,
-            "jwks_uri": f"{issuer}/jwks.json",
+        f"{PERSON_SERVER}/.well-known/aauth-person.json": {
+            "issuer": PERSON_SERVER,
+            "jwks_uri": f"{PERSON_SERVER}/jwks.json",
             **(metadata or {}),
         },
-        f"{issuer}/jwks.json": {
-            "keys": [{**provider_key.as_dict(private=False), "kid": PROVIDER_KID, "alg": "Ed25519", "use": "sig"}]
+        f"{PERSON_SERVER}/jwks.json": {
+            "keys": [
+                {**PERSON_SERVER_KEY.as_dict(private=False), "kid": PERSON_SERVER_KID, "alg": "Ed25519", "use": "sig"}
+            ]
         },
     }
+
+
+def make_person_verifier(authority: str | None = MCP_AUTHORITY) -> PersonVerifier:
+    """
+    The verifier of this server, which takes person tokens from the person server, issued for it.
+    """
+    return PersonVerifier(audience=MCP_ORIGIN, person_servers=[PERSON_SERVER], authority=authority)
 
 
 class FakeFetch:
