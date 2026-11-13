@@ -4,6 +4,7 @@ import hmac
 import json
 import logging
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 from urllib.parse import urlsplit
@@ -17,12 +18,11 @@ from starlette.responses import JSONResponse
 from starlette.types import Scope
 
 from ipinfo_mcp.aauth.protocol import (
-    AGENT_METADATA_DOCUMENT,
     AGENT_TOKEN_TYPE,
-    HTTPS_PREFIX,
+    PERSON_METADATA_DOCUMENT,
+    PERSON_TOKEN_TYPE,
     REQUIRED_COMPONENTS,
     SIGNATURE_ALGORITHMS,
-    agent_domain,
     algorithm_of,
     is_server_identifier,
     signature_base,
@@ -34,13 +34,15 @@ logger = logging.getLogger(__name__)
 # How far a signature's created time, or a token's iat, may lie from now, in seconds
 SIGNATURE_WINDOW = 60
 
-# Agent provider keys are kept for 10 minutes. A token naming a key they lack makes
+# AAuth caps person tokens at an hour
+PERSON_TOKEN_MAX_LIFETIME = 3600
+
+# Person server keys are kept for 10 minutes. A token naming a key they lack makes
 # them refetched early, but AAuth forbids fetching them more than once a minute.
 KEYS_MAX_AGE = 600
 KEYS_REFRESH_AGE = 60
-MAX_PROVIDERS = 100
 
-# Agent provider documents are small, and fetching one holds up the request that needs it
+# Person server documents are small, and fetching one holds up the request that needs it
 FETCH_TIMEOUT = 3.0
 MAX_DOCUMENT_SIZE = 64 * 1024
 
@@ -52,15 +54,15 @@ DERIVED_COMPONENTS = ("@method", "@authority", "@path", "@query")
 # Content-Digest algorithms a request body is checked with (RFC 9530), by their hashlib names
 DIGEST_ALGORITHMS = {"sha-256": "sha256", "sha-512": "sha512"}
 
-AGENT_SCOPE_KEY = "ipinfo_mcp.aauth_agent"
+PERSON_SCOPE_KEY = "ipinfo_mcp.aauth_person"
 
 RESOURCE_METADATA_PATH = "/.well-known/aauth-resource.json"
 
 # The R3 vocabulary through which agents call an MCP server's tools
 MCP_VOCABULARY = "urn:aauth:vocabulary:mcp"
 
-# The AAuth-Requirement value asking for a request signed with an agent token
-AGENT_TOKEN_REQUIREMENT = "requirement=agent-token"
+# The AAuth-Requirement value asking for a request signed with a person token
+PERSON_TOKEN_REQUIREMENT = "requirement=person-token"
 
 # Structured field values as http_sf parses them: a bare value with its parameters
 _Member = tuple[object, dict[str, object]]
@@ -76,17 +78,23 @@ class SignatureError(Exception):
         self.code = code
 
 
-@dataclass(frozen=True)
-class Agent:
+class PersonTokenRequiredError(Exception):
     """
-    An AAuth agent whose signed request verified.
+    An AAuth request signed with an agent token, where a person token is needed.
     """
 
-    # Its agent identifier, aauth:local@domain
+
+@dataclass(frozen=True)
+class Person:
+    """
+    A person an AAuth agent's signed request verified as made for.
+    """
+
+    # Their identifier at the person server, which names them to this server only
     identifier: str
-    # The agent provider that vouches for it
+    # The person server that vouches for them
     issuer: str
-    # The agent token it presented
+    # The person token the agent presented
     token: str
 
 
@@ -101,9 +109,10 @@ class SignedRequest:
 
 
 @dataclass(frozen=True)
-class AgentToken:
-    agent: str
+class PersonToken:
+    person: str
     issuer: str
+    audience: str
     kid: str
     alg: str
     jwk: dict[str, object]
@@ -132,8 +141,8 @@ def _is_computable(item: _Member) -> bool:
 
 def parse_signed_request(headers: Headers) -> SignedRequest:
     """
-    Read the signature and agent token from an AAuth request's headers, and check the signature covers
-    the required components.
+    Read the signature and the token presented with it from an AAuth request's headers, and check
+    the signature covers the required components.
 
     Raises SignatureError when the signature is refused.
     """
@@ -208,29 +217,43 @@ def _is_number(value: object) -> bool:
     return isinstance(value, int | float) and not isinstance(value, bool)
 
 
-def _has_agent_claims(claims: dict[str, object]) -> bool:
-    issuer = claims.get("iss")
+def _is_agent_token(jwt: str) -> bool:
+    """
+    Whether jwt says it is an agent token. Nothing about it is verified.
+    """
+    header = _decode_json_part(jwt.split(".", 1)[0])
+    return header is not None and header.get("typ") == AGENT_TOKEN_TYPE
+
+
+def _has_person_claims(claims: dict[str, object]) -> bool:
     cnf = claims.get("cnf")
     jwk = cast(dict[str, object], cnf).get("jwk") if isinstance(cnf, dict) else None
+    subject = claims.get("sub")
+    issued_at = claims.get("iat")
+    expires_at = claims.get("exp")
     return (
-        is_server_identifier(issuer)
-        and claims.get("dwk") == AGENT_METADATA_DOCUMENT
-        and agent_domain(claims.get("sub")) == cast(str, issuer).removeprefix(HTTPS_PREFIX)
+        is_server_identifier(claims.get("iss"))
+        and claims.get("dwk") == PERSON_METADATA_DOCUMENT
         and isinstance(claims.get("jti"), str)
-        and _is_number(claims.get("iat"))
-        and _is_number(claims.get("exp"))
+        and _is_number(issued_at)
+        and _is_number(expires_at)
         and isinstance(jwk, dict)
         and isinstance(cast(dict[str, object], jwk).get("alg"), str)
-        and ("ps" not in claims or is_server_identifier(claims["ps"]))
-        and ("parent_agent" not in claims or agent_domain(claims["parent_agent"]) is not None)
+        and isinstance(subject, str)
+        and subject != ""
+        and isinstance(claims.get("aud"), str)
+        and cast(float, expires_at) - cast(float, issued_at) <= PERSON_TOKEN_MAX_LIFETIME
+        # A person token carries identity only, never authorization
+        and "scope" not in claims
+        and "account" not in claims
     )
 
 
-def parse_agent_token(jwt: str, now: int) -> AgentToken:
+def parse_person_token(jwt: str, now: int) -> PersonToken:
     """
-    Decode an agent token and check its header and claims, but not the agent provider's signature.
+    Decode a person token and check its header and claims, but not the person server's signature.
 
-    Returns the agent with what is needed to verify that signature. Raises SignatureError
+    Returns the person with what is needed to verify that signature. Raises SignatureError
     when the token is refused.
     """
     parts = jwt.split(".")
@@ -239,7 +262,7 @@ def parse_agent_token(jwt: str, now: int) -> AgentToken:
     if (
         header is None
         or claims is None
-        or header.get("typ") != AGENT_TOKEN_TYPE
+        or header.get("typ") != PERSON_TOKEN_TYPE
         or not isinstance(header.get("kid"), str)
     ):
         raise SignatureError("invalid_jwt")
@@ -250,7 +273,7 @@ def parse_agent_token(jwt: str, now: int) -> AgentToken:
     if "iss" not in claims:
         raise SignatureError("issuer_missing")
 
-    if not _has_agent_claims(claims):
+    if not _has_person_claims(claims):
         raise SignatureError("invalid_jwt")
 
     if cast(float, claims["exp"]) <= now:
@@ -271,9 +294,10 @@ def parse_agent_token(jwt: str, now: int) -> AgentToken:
     except ValueError as exc:
         raise SignatureError("invalid_jwt") from exc
 
-    return AgentToken(
-        agent=cast(str, claims["sub"]),
+    return PersonToken(
+        person=cast(str, claims["sub"]),
         issuer=cast(str, claims["iss"]),
+        audience=cast(str, claims["aud"]),
         kid=cast(str, header["kid"]),
         alg=cast(str, header["alg"]),
         jwk=jwk,
@@ -331,12 +355,12 @@ async def _fetch_document(url: str) -> dict[str, object]:
     return cast(dict[str, object], document)
 
 
-async def _fetch_provider_keys(issuer: str) -> dict[str, object] | SignatureError:
+async def _fetch_person_server_keys(issuer: str) -> dict[str, object] | SignatureError:
     """
-    Fetch an agent provider's keys, through its metadata document. Returns the error refusing them when they can't be.
+    Fetch a person server's keys, through its metadata document. Returns the error refusing them when they can't be.
     """
     try:
-        metadata = await _fetch_document(f"{issuer}/.well-known/{AGENT_METADATA_DOCUMENT}")
+        metadata = await _fetch_document(f"{issuer}/.well-known/{PERSON_METADATA_DOCUMENT}")
         if "issuer" not in metadata:
             return SignatureError("issuer_missing")
         if metadata["issuer"] != issuer:
@@ -346,13 +370,13 @@ async def _fetch_provider_keys(issuer: str) -> dict[str, object] | SignatureErro
             return SignatureError("unknown_key")
         return await _fetch_document(jwks_uri)
     except (SSRFError, SSRFFetchError, ValueError) as exc:
-        logger.warning("aauth provider keys unreachable issuer=%s error=%s", issuer, exc)
+        logger.warning("aauth person server keys unreachable issuer=%s error=%s", issuer, exc)
         return SignatureError("unknown_key")
 
 
-def _token_key_error(token: AgentToken, keys: dict[str, object] | SignatureError) -> str | None:
+def _token_key_error(token: PersonToken, keys: dict[str, object] | SignatureError) -> str | None:
     """
-    Check the agent provider signed token with one of keys. Returns the Signature-Error code refusing it, or None.
+    Check the person server signed token with one of keys. Returns the Signature-Error code refusing it, or None.
     """
     if isinstance(keys, SignatureError):
         return keys.code
@@ -372,26 +396,34 @@ def _token_key_error(token: AgentToken, keys: dict[str, object] | SignatureError
     return None if verify(token.signing_input, token.signature, key) else "invalid_jwt"
 
 
-class AgentVerifier:
+class PersonVerifier:
     """
-    Verify requests AAuth agents sign: the request signature, the agent token it carries,
-    and the agent provider's signature on that token.
+    Verify requests AAuth agents sign with a person token: the request signature, the
+    person token, that it binds the key the request was signed with, and the person
+    server's signature on it.
     """
 
-    def __init__(self, *, authority: str | None = None) -> None:
+    def __init__(self, *, audience: str, person_servers: Sequence[str], authority: str | None = None) -> None:
         """
         Args:
+            audience: This server's resource identifier, which person tokens must be issued for.
+            person_servers: Person servers whose person tokens are accepted.
             authority: Host, and port if any, this server is reached at. When set, a request
                 that names any other is refused, so a signature made for another service
                 can't be replayed here.
         """
+        self._audience = audience
+        self._person_servers = frozenset(person_servers)
         self._authority = authority.lower() if authority else None
-        # Each provider's keys, or the error fetching them ended in, with when they were fetched
-        self._providers: dict[str, tuple[float, dict[str, object] | SignatureError]] = {}
+        # Each person server's keys, or the error fetching them ended in, with when they were
+        # fetched. Only allowed person servers are fetched, so this stays small.
+        self._person_server_keys: dict[str, tuple[float, dict[str, object] | SignatureError]] = {}
 
-    async def verify(self, scope: Scope, body: bytes, now: int | None = None) -> Agent:
+    async def verify(self, scope: Scope, body: bytes, now: int | None = None) -> Person:
         """
-        Verify an AAuth request. Returns the agent that signed it, raises SignatureError when it is refused.
+        Verify an AAuth request. Returns the person it is made for.
+
+        Raises PersonTokenRequiredError when it is signed with an agent token, and SignatureError when it is refused.
 
         Args:
             scope: The request's ASGI scope.
@@ -402,8 +434,13 @@ class AgentVerifier:
         headers = Headers(scope=scope)
 
         signed = parse_signed_request(headers)
+        if _is_agent_token(signed.jwt):
+            raise PersonTokenRequiredError()
         check_signature_timing(signed, now)
-        token = parse_agent_token(signed.jwt, now)
+        token = parse_person_token(signed.jwt, now)
+
+        if token.issuer not in self._person_servers or token.audience != self._audience:
+            raise SignatureError("invalid_jwt")
 
         if self._authority is not None and component_value(scope, headers, "@authority") != self._authority:
             raise SignatureError("invalid_signature")
@@ -415,6 +452,7 @@ class AgentVerifier:
                 raise SignatureError("invalid_signature")
             components.append((name, value))
         base = signature_base(components, signed.signature_params)
+        # Verifying with the key the token binds is what ties the token to the agent presenting it
         if not verify(base.encode(), signed.signature, token.jwk):
             raise SignatureError("invalid_signature")
 
@@ -422,63 +460,60 @@ class AgentVerifier:
             check_content_digest(headers, body)
 
         await self._verify_token_signature(token)
-        return Agent(identifier=token.agent, issuer=token.issuer, token=signed.jwt)
+        return Person(identifier=token.person, issuer=token.issuer, token=signed.jwt)
 
-    async def _provider_keys(self, issuer: str, *, refresh: bool = False) -> dict[str, object] | SignatureError:
+    async def _keys(self, issuer: str, *, refresh: bool = False) -> dict[str, object] | SignatureError:
         max_age = KEYS_REFRESH_AGE if refresh else KEYS_MAX_AGE
-        cached = self._providers.get(issuer)
+        cached = self._person_server_keys.get(issuer)
         if cached is not None and time.monotonic() - cached[0] < max_age:
             return cached[1]
 
-        keys = await _fetch_provider_keys(issuer)
-        # Inserting it anew moves the provider last, so the one evicted is the one fetched longest ago
-        self._providers.pop(issuer, None)
-        self._providers[issuer] = (time.monotonic(), keys)
-        if len(self._providers) > MAX_PROVIDERS:
-            del self._providers[next(iter(self._providers))]
+        keys = await _fetch_person_server_keys(issuer)
+        self._person_server_keys[issuer] = (time.monotonic(), keys)
         return keys
 
-    async def _verify_token_signature(self, token: AgentToken) -> None:
-        error = _token_key_error(token, await self._provider_keys(token.issuer))
+    async def _verify_token_signature(self, token: PersonToken) -> None:
+        error = _token_key_error(token, await self._keys(token.issuer))
         if error is not None:
-            # The provider may have rotated its key since we fetched its keys
-            error = _token_key_error(token, await self._provider_keys(token.issuer, refresh=True))
+            # The person server may have rotated its key since we fetched its keys
+            error = _token_key_error(token, await self._keys(token.issuer, refresh=True))
         if error is not None:
             raise SignatureError(error)
 
 
-def scope_agent(scope: Scope) -> Agent | None:
+def scope_person(scope: Scope) -> Person | None:
     """
-    Get the AAuth agent AAuthMiddleware verified the request in scope as signed by, or None.
+    Get the person AAuthMiddleware verified the request in scope as made for, or None.
     """
-    agent = scope.get(AGENT_SCOPE_KEY)
-    return agent if isinstance(agent, Agent) else None
+    person = scope.get(PERSON_SCOPE_KEY)
+    return person if isinstance(person, Person) else None
 
 
 def resource_metadata(issuer: str, mcp_endpoint: str) -> dict[str, object]:
     """
     This server's AAuth resource metadata, served at RESOURCE_METADATA_PATH.
 
-    Agents that read it, such as the AAuth Connector, find the MCP server at mcp_endpoint
-    and call its tools signed as themselves, with no further authorization.
+    Agents that read it, such as the AAuth Connector, find the MCP server at mcp_endpoint.
+    They call its tools with a person token issued for issuer, which they get from their
+    person server.
     """
     return {
         "issuer": issuer,
         "name": "IPinfo",
         "description": "IP address geolocation and network (ASN) data from IPinfo Lite, without an IPinfo account",
-        "access_mode": "agent-token",
+        "access_mode": "person-token",
         "r3_vocabularies": {MCP_VOCABULARY: mcp_endpoint},
     }
 
 
-def agent_token_required_response() -> JSONResponse:
+def person_token_required_response() -> JSONResponse:
     """
-    Answer a request that needs an AAuth signature and carries none: a 401 whose AAuth-Requirement asks for one.
+    Answer a request that needs a person token and carries none: a 401 whose AAuth-Requirement asks for one.
     """
     return JSONResponse(
-        {"error": "This request must be signed by an AAuth agent"},
+        {"error": "This request must be signed by an AAuth agent presenting a person token"},
         status_code=401,
-        headers={"AAuth-Requirement": AGENT_TOKEN_REQUIREMENT},
+        headers={"AAuth-Requirement": PERSON_TOKEN_REQUIREMENT},
     )
 
 
