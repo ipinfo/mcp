@@ -8,10 +8,11 @@ from typing import NotRequired, TypedDict, cast
 import httpx
 from fastmcp import Context, FastMCP
 from fastmcp.server.dependencies import get_http_request
+from http_sf import parse
 from mcp.types import ToolAnnotations
 
-from ipinfo_mcp.aauth.agent import AGENT_TOKEN_HEADER, AgentProvider
-from ipinfo_mcp.aauth.resource import Agent, scope_agent
+from ipinfo_mcp.aauth.agent import PERSON_TOKEN_HEADER, AgentProvider
+from ipinfo_mcp.aauth.resource import Person, scope_person
 from ipinfo_mcp.cache import CachedResponse, IPCache
 from ipinfo_mcp.client import USER_AGENT
 from ipinfo_mcp.errors import ErrorResponse, extract_error, handle_api_error
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 # How many Lite requests run at once per tool call
 MAX_CONCURRENT_REQUESTS = 10
 
-# Lite data is the same whoever asks for it, so every agent shares the cached results
+# Lite data is the same whoever asks for it, so everyone shares the cached results
 CACHE_OWNER = "aauth"
 
 
@@ -66,23 +67,22 @@ class LiteClient:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
         return self._http
 
-    async def lookup(self, ips: list[str], *, agent_token: str | None = None) -> dict[str, LiteResponse]:
+    async def lookup(self, ips: list[str], *, person_token: str | None = None) -> dict[str, LiteResponse]:
         """
         Look up IPs on the Lite endpoint. Returns each IP's response, keyed by the IP.
 
-        agent_token is the agent token of the agent the lookups are for. It is relayed in
-        AGENT_TOKEN_HEADER, so the API can attribute them to that agent rather than to us.
+        person_token is the person token of the person the lookups are for, relayed in PERSON_TOKEN_HEADER.
 
         HTTP errors (401, 429, etc.) are propagated as httpx.HTTPStatusError, the first one that happens.
         """
         semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-        headers = {AGENT_TOKEN_HEADER: agent_token} if agent_token else None
+        headers = {PERSON_TOKEN_HEADER: person_token} if person_token else None
 
         async def fetch(ip: str) -> LiteResponse:
             async with semaphore:
                 response = await self.http.get(f"/lite/{ip}", headers=headers)
             if response.status_code == 401:
-                # The API names what it refused in our signature, that's a fault on our side
+                # The API names what it refused, in our signature or in the person token we relayed
                 logger.warning("GET /lite refused signature_error=%s", response.headers.get("signature-error"))
             _ = response.raise_for_status()
             return cast(LiteResponse, response.json())
@@ -97,13 +97,24 @@ class LiteClient:
         return {ip: task.result() for ip, task in tasks.items()}
 
 
-def get_request_agent() -> Agent | None:
+def get_request_person() -> Person | None:
     """
-    Get the AAuth agent that signed the current request, or None outside of an HTTP request.
+    Get the person the current request was made for, or None outside of an HTTP request.
     """
     with contextlib.suppress(RuntimeError):
-        return scope_agent(get_http_request().scope)
+        return scope_person(get_http_request().scope)
     return None
+
+
+def _refuses_person_token(response: httpx.Response) -> bool:
+    """
+    Whether a 401 from the API refuses the person token we relayed, rather than our own signature.
+    """
+    try:
+        error = parse(response.headers.get("signature-error", "").encode("latin-1"), tltype="dictionary")
+    except ValueError:
+        return False
+    return "relayed" in cast(dict[str, object], error)
 
 
 def handle_lite_error(exc: httpx.HTTPStatusError) -> ErrorResponse:
@@ -117,12 +128,22 @@ def handle_lite_error(exc: httpx.HTTPStatusError) -> ErrorResponse:
             code="RATE_LIMITED",
             message="Rate limit exceeded.",
             suggestion=(
-                "Lookups without an IPinfo account have reached their daily limit, try again tomorrow. "
+                "The user has reached their daily limit of lookups without an IPinfo account, try again tomorrow. "
                 "The user can get a free token at https://ipinfo.io/signup"
             ),
         )
 
-    # Either refusal means this server can't reach the API as an agent, the user can't fix it
+    if status == 401 and _refuses_person_token(exc.response):
+        return ErrorResponse(
+            code="API_ERROR",
+            message=f"The IPinfo API refused the user's person token ({exc.response.headers['signature-error']}).",
+            suggestion=(
+                "Try the request again. If it keeps failing, tell the user to contact IPinfo support at "
+                "support@ipinfo.io"
+            ),
+        )
+
+    # Any other refusal is of this server, which the user can't fix
     if status == 401:
         return ErrorResponse(
             code="API_ERROR",
@@ -164,8 +185,8 @@ async def ipinfo_lite_lookup(
     """
     Look up the country, continent, and network (ASN) of one or more IP addresses, with IPinfo Lite.
 
-    Works without an IPinfo account. Lookups count against a daily limit shared by everyone
-    using this server without an account.
+    Works without an IPinfo account, for a person signed in with their AAuth person server.
+    Lookups count against a daily limit for each person.
 
     Results are paginated. Use page and page_size to control which slice is returned.
 
@@ -180,9 +201,9 @@ async def ipinfo_lite_lookup(
     assert ctx is not None
     client: LiteClient = ctx.lifespan_context["client"]
     cache: IPCache = ctx.lifespan_context["cache"]
-    agent = get_request_agent()
+    person = get_request_person()
 
-    logger.info("ipinfo_lite_lookup ips=%d agent=%s", len(ips), agent.identifier if agent else None)
+    logger.info("ipinfo_lite_lookup ips=%d person=%s", len(ips), person.identifier if person else None)
 
     valid_ips, validation_errors = validate_ips(ips)
 
@@ -193,8 +214,7 @@ async def ipinfo_lite_lookup(
     errors: dict[str, ErrorResponse] = {}
     if misses:
         try:
-            # Relaying the calling agent lets the API tell agents apart, though they all reach it through us
-            fetched = await client.lookup(misses, agent_token=agent.token if agent else None)
+            fetched = await client.lookup(misses, person_token=person.token if person else None)
         except httpx.HTTPStatusError as exc:
             logger.warning("ipinfo_lite_lookup api_error status=%d", exc.response.status_code)
             return handle_lite_error(exc)
@@ -237,7 +257,8 @@ def create_lite_server(
     Create the MCP server AAuth agents use, in place of the main one.
 
     Agents have no IPinfo account, and the API serves them Lite only, so this server
-    has a single tool for it. AAuthMiddleware sends it the requests agents signed.
+    has a single tool for it. AAuthMiddleware sends it the requests agents signed with
+    a person token.
     """
 
     @asynccontextmanager
@@ -250,7 +271,7 @@ def create_lite_server(
     server = FastMCP(
         name="ipinfo",
         instructions=(
-            "This server provides IP address intelligence powered by IPinfo Lite, to agents "
+            "This server provides IP address intelligence powered by IPinfo Lite, to people "
             "without an IPinfo account. Use ipinfo_lite_lookup to get the country, continent, "
             "and network (ASN) of IP addresses. This server maintains an in-memory cache of "
             "lookup results, so you do not need to keep your own cache or deduplicate IPs "

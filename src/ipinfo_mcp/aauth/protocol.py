@@ -19,12 +19,14 @@ AGENT_TOKEN_TYPE = "aa-agent+jwt"
 
 AGENT_METADATA_DOCUMENT = "aauth-agent.json"
 
+PERSON_TOKEN_TYPE = "aa-person+jwt"
+
+PERSON_METADATA_DOCUMENT = "aauth-person.json"
+
 HTTPS_PREFIX = "https://"
 
 # Top-level domains are alphabetic (RFC 1123), which keeps IPv4 addresses out
 _DOMAIN = re.compile(r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$")
-
-_AGENT_IDENTIFIER = re.compile(r"^aauth:[A-Za-z0-9._+-]{1,255}@([^@]+)$")
 
 
 def is_server_identifier(value: object) -> bool:
@@ -38,16 +40,6 @@ def is_server_identifier(value: object) -> bool:
         and value.startswith(HTTPS_PREFIX)
         and _DOMAIN.match(value.removeprefix(HTTPS_PREFIX)) is not None
     )
-
-
-def agent_domain(value: object) -> str | None:
-    """
-    Get the domain of an AAuth agent identifier, aauth:local@domain, or None if value is not one.
-    """
-    match = _AGENT_IDENTIFIER.match(value) if isinstance(value, str) else None
-    if match is None or _DOMAIN.match(match[1]) is None:
-        return None
-    return match[1]
 
 
 def algorithm_of(jwk: Mapping[str, object]) -> str | None:
