@@ -16,17 +16,19 @@ from starlette.types import Receive, Scope, Send
 
 from ipinfo_mcp import server
 from ipinfo_mcp.aauth import resource
-from ipinfo_mcp.aauth.app import AAuthMiddleware, agent_from_env, with_aauth
+from ipinfo_mcp.aauth.app import AAuthMiddleware, agent_from_env, person_servers_from_env, with_aauth
 from ipinfo_mcp.aauth.protocol import REQUIRED_COMPONENTS
-from ipinfo_mcp.aauth.resource import AgentVerifier, scope_agent
+from ipinfo_mcp.aauth.resource import scope_person
 from ipinfo_mcp.auth import create_auth, get_request_token
 from tests.aauth_helpers import (
-    AGENT,
-    MCP_AUTHORITY,
+    PERSON,
+    PERSON_SERVER,
     FakeFetch,
     agent_token,
     make_agent_provider,
-    provider_documents,
+    make_person_verifier,
+    person_server_documents,
+    person_token,
     run_lifespan,
     sign_request,
 )
@@ -37,7 +39,7 @@ from tests.test_auth import tool_result
 
 @pytest.fixture
 def documents(monkeypatch: pytest.MonkeyPatch) -> FakeFetch:
-    fetch = FakeFetch(provider_documents())
+    fetch = FakeFetch(person_server_documents())
     monkeypatch.setattr(resource, "ssrf_safe_fetch", fetch)
     return fetch
 
@@ -51,8 +53,8 @@ def whoami_server(name: str, auth: AuthProvider | None = None) -> FastMCP:
 
     @mcp.tool
     def whoami(ctx: Context) -> dict[str, str | None]:
-        agent = scope_agent(get_http_request().scope)
-        return {"server": name, "token": get_request_token(ctx), "agent": agent.identifier if agent else None}
+        person = scope_person(get_http_request().scope)
+        return {"server": name, "token": get_request_token(ctx), "person": person.identifier if person else None}
 
     return mcp
 
@@ -63,7 +65,7 @@ async def serve(auth: AuthProvider | None) -> AsyncIterator[httpx.AsyncClient]:
         whoami_server("main", auth).http_app(path="/", stateless_http=True),
         agent=make_agent_provider(),
         agent_app=whoami_server("agents").http_app(path="/", stateless_http=True),
-        verifier=AgentVerifier(authority=MCP_AUTHORITY),
+        verifier=make_person_verifier(),
         origin="https://mcp.ipinfo.io",
     )
     async with run_lifespan(app):
@@ -75,15 +77,21 @@ def oauth() -> AuthProvider:
     return create_auth(issuer="https://ipinfo.io", resource_url="https://mcp.ipinfo.io/")
 
 
-def signed_now(**overrides: object) -> Callable[[httpx.Request], httpx.Request]:
-    """httpx auth signing a request as an agent, at the current time."""
+def signed_now(header: dict[str, object] | None = None) -> Callable[[httpx.Request], httpx.Request]:
+    """httpx auth signing a request as an agent presenting a person token, at the current time."""
 
     def auth(request: httpx.Request) -> httpx.Request:
         now = int(time.time())
-        claims = {"iat": now, "exp": now + 3600}
-        return sign_request(request, jwt=agent_token(claims=claims, **overrides), created=now)
+        jwt = person_token(header=header, claims={"iat": now, "exp": now + 3600})
+        return sign_request(request, jwt=jwt, created=now)
 
     return auth
+
+
+def signed_with_agent_token_now(request: httpx.Request) -> httpx.Request:
+    """httpx auth signing a request as an agent presenting its agent token, at the current time."""
+    now = int(time.time())
+    return sign_request(request, jwt=agent_token(claims={"iat": now, "exp": now + 3600}), created=now)
 
 
 async def call_whoami(
@@ -129,7 +137,7 @@ class TestMainEndpoint:
             response = await call_whoami(http, auth=signed_now(), token="a1b2c3d4e5f6a7")
 
         assert response.status_code == 200
-        assert tool_result(response) == {"server": "main", "token": "a1b2c3d4e5f6a7", "agent": None}
+        assert tool_result(response) == {"server": "main", "token": "a1b2c3d4e5f6a7", "person": None}
         assert documents.fetched == []
 
 
@@ -163,34 +171,43 @@ class TestAgentEndpoint:
             pytest.param("not json-rpc", id="not json-rpc"),
         ],
     )
-    async def test_anything_else_unsigned_must_be_signed(self, documents: FakeFetch, body: object) -> None:
+    async def test_anything_else_unsigned_needs_a_person_token(self, documents: FakeFetch, body: object) -> None:
         async with serve(oauth()) as http:
             response = await post_unsigned(http, "/aauth", body)
 
         assert response.status_code == 401
-        assert response.headers["aauth-requirement"] == "requirement=agent-token"
+        assert response.headers["aauth-requirement"] == "requirement=person-token"
         assert "www-authenticate" not in response.headers
+
+    async def test_call_signed_with_agent_token_needs_a_person_token(self, documents: FakeFetch) -> None:
+        async with serve(oauth()) as http:
+            response = await call_whoami(http, auth=signed_with_agent_token_now, path="/aauth")
+
+        assert response.status_code == 401
+        assert response.headers["aauth-requirement"] == "requirement=person-token"
+        assert "signature-error" not in response.headers
+        assert documents.fetched == []
 
     async def test_signed_call_reaches_agents(self, documents: FakeFetch) -> None:
         async with serve(oauth()) as http:
             response = await call_whoami(http, auth=signed_now(), path="/aauth")
 
         assert response.status_code == 200
-        assert tool_result(response) == {"server": "agents", "token": None, "agent": AGENT}
+        assert tool_result(response) == {"server": "agents", "token": None, "person": PERSON}
 
     async def test_signed_call_reaches_agents_without_oauth(self, documents: FakeFetch) -> None:
         async with serve(None) as http:
             response = await call_whoami(http, auth=signed_now(), path="/aauth")
 
         assert response.status_code == 200
-        assert tool_result(response) == {"server": "agents", "token": None, "agent": AGENT}
+        assert tool_result(response) == {"server": "agents", "token": None, "person": PERSON}
 
     async def test_body_reaches_agents_after_its_digest_is_checked(self, documents: FakeFetch) -> None:
         def auth(request: httpx.Request) -> httpx.Request:
             now = int(time.time())
             return sign_request(
                 with_digest(request),
-                jwt=agent_token(claims={"iat": now, "exp": now + 3600}),
+                jwt=person_token(claims={"iat": now, "exp": now + 3600}),
                 created=now,
                 components=(*REQUIRED_COMPONENTS, "content-digest"),
             )
@@ -199,7 +216,7 @@ class TestAgentEndpoint:
             response = await call_whoami(http, auth=auth, path="/aauth")
 
         assert response.status_code == 200
-        assert tool_result(response)["agent"] == AGENT
+        assert tool_result(response)["person"] == PERSON
 
     async def test_refused_signature_names_why(self, documents: FakeFetch) -> None:
         async with serve(oauth()) as http:
@@ -236,12 +253,13 @@ class TestAgentEndpoint:
 
         assert [tool["name"] for tool in listed["result"]["tools"]] == ["ipinfo_lite_lookup"]
         assert called["result"]["structuredContent"]["result"]["results"] == {"8.8.8.8": LITE_8888}
-        # The API is told which agent the lookup is for
+        # The API is told which person the lookup is for
         lookup = httpx_mock.get_request()
         assert lookup is not None
-        relayed = lookup.headers["IPinfo-Agent-Token"]
+        relayed = lookup.headers["IPinfo-Person-Token"]
         claims = json.loads(base64.urlsafe_b64decode(relayed.split(".")[1] + "=="))
-        assert claims["sub"] == AGENT
+        assert (claims["iss"], claims["sub"]) == (PERSON_SERVER, PERSON)
+        assert '"ipinfo-person-token"' in lookup.headers["Signature-Input"]
 
 
 class TestConfiguration:
@@ -271,6 +289,46 @@ class TestConfiguration:
 
         assert with_aauth(mcp_app, api_base_url=BASE_URL, cache_ttl=60) is mcp_app
 
+    def test_person_servers_are_a_comma_separated_list(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("IPINFO_AAUTH_PERSON_SERVERS", " https://person.hello.coop, https://person.example ,")
+
+        assert person_servers_from_env() == ["https://person.hello.coop", "https://person.example"]
+
+    @pytest.mark.parametrize("value", [None, "", " , "])
+    def test_aauth_requires_person_servers(self, monkeypatch: pytest.MonkeyPatch, value: str | None) -> None:
+        configure_aauth(monkeypatch)
+        if value is None:
+            monkeypatch.delenv("IPINFO_AAUTH_PERSON_SERVERS")
+        else:
+            monkeypatch.setenv("IPINFO_AAUTH_PERSON_SERVERS", value)
+
+        with pytest.raises(RuntimeError, match="IPINFO_AAUTH_PERSON_SERVERS must be set"):
+            with_aauth(mcp_app, api_base_url=BASE_URL, cache_ttl=60)
+
+    @pytest.mark.parametrize("person_server", ["https://person.example/", "http://person.example", "person.example"])
+    def test_person_servers_must_be_server_identifiers(self, monkeypatch: pytest.MonkeyPatch, person_server: str) -> None:
+        monkeypatch.setenv("IPINFO_AAUTH_PERSON_SERVERS", f"https://person.hello.coop,{person_server}")
+
+        with pytest.raises(RuntimeError, match="must be https and a lowercase domain"):
+            person_servers_from_env()
+
+    @pytest.mark.parametrize(
+        "resource_url",
+        ["https://other.example/", "http://mcp.ipinfo.io/", "https://mcp.ipinfo.io:8443/"],
+    )
+    def test_resource_url_must_be_on_the_issuer(self, monkeypatch: pytest.MonkeyPatch, resource_url: str) -> None:
+        configure_aauth(monkeypatch)
+        monkeypatch.setenv("IPINFO_MCP_RESOURCE_URL", resource_url)
+
+        with pytest.raises(RuntimeError, match="IPINFO_MCP_RESOURCE_URL must be on IPINFO_AAUTH_ISSUER"):
+            with_aauth(mcp_app, api_base_url=BASE_URL, cache_ttl=60)
+
+    def test_resource_url_may_spell_the_issuer_differently(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        configure_aauth(monkeypatch)
+        monkeypatch.setenv("IPINFO_MCP_RESOURCE_URL", "HTTPS://MCP.ipinfo.io/")
+
+        assert isinstance(with_aauth(mcp_app, api_base_url=BASE_URL, cache_ttl=60), AAuthMiddleware)
+
 
 class TestProviderDocuments:
     @pytest.mark.parametrize(
@@ -286,7 +344,7 @@ class TestProviderDocuments:
             mcp_app,
             agent=provider,
             agent_app=whoami_server("agents").http_app(path="/"),
-            verifier=AgentVerifier(),
+            verifier=make_person_verifier(),
             origin="https://mcp.ipinfo.io",
         )
 
@@ -307,19 +365,9 @@ class TestProviderDocuments:
             "description": (
                 "IP address geolocation and network (ASN) data from IPinfo Lite, without an IPinfo account"
             ),
-            "access_mode": "agent-token",
+            "access_mode": "person-token",
             "r3_vocabularies": {"urn:aauth:vocabulary:mcp": "https://mcp.ipinfo.io/aauth"},
         }
-
-    async def test_resource_metadata_names_the_public_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("IPINFO_MCP_RESOURCE_URL", "http://LocalHost:8000/")
-
-        async with serve_app(monkeypatch) as http:
-            response = await http.get("/.well-known/aauth-resource.json")
-
-        metadata = response.json()
-        assert metadata["issuer"] == "http://localhost:8000"
-        assert metadata["r3_vocabularies"] == {"urn:aauth:vocabulary:mcp": "http://localhost:8000/aauth"}
 
     async def test_are_served_with_the_whole_app(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async with serve_app(monkeypatch) as http:
@@ -344,12 +392,18 @@ MAIN_TOOLS = [
 ]
 
 
+def configure_aauth(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configure AAuth in the environment, as the hosted server is, trusting the test person server."""
+    monkeypatch.setenv("IPINFO_AAUTH_PROVIDER_KEY", provider_key_pem())
+    monkeypatch.setenv("IPINFO_AAUTH_ISSUER", "https://mcp.ipinfo.io")
+    monkeypatch.setenv("IPINFO_AAUTH_PERSON_SERVERS", PERSON_SERVER)
+
+
 @asynccontextmanager
 async def serve_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[httpx.AsyncClient]:
     """The whole HTTP app, with AAuth configured, as the server runs it."""
-    monkeypatch.setenv("IPINFO_AAUTH_PROVIDER_KEY", provider_key_pem())
-    monkeypatch.setenv("IPINFO_AAUTH_ISSUER", "https://mcp.ipinfo.io")
-    monkeypatch.setattr(resource, "ssrf_safe_fetch", FakeFetch(provider_documents()))
+    configure_aauth(monkeypatch)
+    monkeypatch.setattr(resource, "ssrf_safe_fetch", FakeFetch(person_server_documents()))
     app = server.create_app()
     async with run_lifespan(app):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://mcp.ipinfo.io") as http:

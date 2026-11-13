@@ -130,36 +130,37 @@ Takes no parameters. Returns `token` (omitted when connected with OAuth), `reque
 
 ### `ipinfo_lite_lookup`
 
-Only offered to agents that sign their requests with [AAuth](https://www.aauth.dev/), who get it in place of the tools above. Takes the common parameters and returns the [Lite](https://ipinfo.io/developers/lite-api) data for each IP: `ip`, `asn`, `as_name`, `as_domain`, `country`, `country_code`, `continent`, `continent_code`. When the daily limit for lookups without an account is reached, it returns a `RATE_LIMITED` error.
+Only offered to agents that sign their requests with [AAuth](https://www.aauth.dev/), who get it in place of the tools above. Calling it needs a person token, which names the person the agent acts for. Takes the common parameters and returns the [Lite](https://ipinfo.io/developers/lite-api) data for each IP: `ip`, `asn`, `as_name`, `as_domain`, `country`, `country_code`, `continent`, `continent_code`. When the person reaches their daily limit for lookups without an account, it returns a `RATE_LIMITED` error.
 
 ## Configuration
 
 The server is configured through environment variables:
 
-| Variable                       | Default                          | Description                                                                           |
-| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------- |
-| `IPINFO_TOKEN`                 |                                  | API token (stdio transport; over HTTP the token comes from the request)               |
-| `IPINFO_API_BASE_URL`          | `https://api.ipinfo.io`          | Base URL for `api.ipinfo.io` endpoints                                                |
-| `IPINFO_LEGACY_BASE_URL`       | `https://ipinfo.io`              | Base URL for legacy `ipinfo.io` endpoints (e.g. `/me`)                                |
-| `IPINFO_CACHE_TTL`             | `3600`                           | Seconds a cached IP result stays fresh                                                |
-| `IPINFO_TRANSPORT`             | `stdio`                          | Transport type (`stdio` or `http`)                                                    |
-| `HOST`                         | `0.0.0.0`                        | HTTP host (only for `http` transport)                                                 |
-| `PORT`                         | `8000`                           | HTTP port (only for `http` transport)                                                 |
-| `IPINFO_OAUTH_ISSUER`          |                                  | OAuth issuer whose access tokens are accepted; OAuth is off when unset                |
-| `IPINFO_MCP_RESOURCE_URL`      |                                  | Public URL of this server, required with `IPINFO_OAUTH_ISSUER`                        |
-| `IPINFO_OAUTH_JWKS_URI`        | `<issuer>/.well-known/jwks.json` | Where the issuer publishes its signing keys                                           |
-| `IPINFO_OPENAI_APPS_CHALLENGE` |                                  | Token served at `/.well-known/openai-apps-challenge` for OpenAI's domain verification |
-| `IPINFO_AAUTH_PROVIDER_KEY`    |                                  | Ed25519 private key, PEM encoded, for AAuth; AAuth is off when unset                  |
-| `IPINFO_AAUTH_ISSUER`          |                                  | Public URL of this server for AAuth, required with the key                            |
+| Variable                       | Default                          | Description                                                                                  |
+| ------------------------------ | -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `IPINFO_TOKEN`                 |                                  | API token (stdio transport; over HTTP the token comes from the request)                      |
+| `IPINFO_API_BASE_URL`          | `https://api.ipinfo.io`          | Base URL for `api.ipinfo.io` endpoints                                                       |
+| `IPINFO_LEGACY_BASE_URL`       | `https://ipinfo.io`              | Base URL for legacy `ipinfo.io` endpoints (e.g. `/me`)                                       |
+| `IPINFO_CACHE_TTL`             | `3600`                           | Seconds a cached IP result stays fresh                                                       |
+| `IPINFO_TRANSPORT`             | `stdio`                          | Transport type (`stdio` or `http`)                                                           |
+| `HOST`                         | `0.0.0.0`                        | HTTP host (only for `http` transport)                                                        |
+| `PORT`                         | `8000`                           | HTTP port (only for `http` transport)                                                        |
+| `IPINFO_OAUTH_ISSUER`          |                                  | OAuth issuer whose access tokens are accepted; OAuth is off when unset                       |
+| `IPINFO_MCP_RESOURCE_URL`      |                                  | Public URL of this server, required with `IPINFO_OAUTH_ISSUER`                               |
+| `IPINFO_OAUTH_JWKS_URI`        | `<issuer>/.well-known/jwks.json` | Where the issuer publishes its signing keys                                                  |
+| `IPINFO_OPENAI_APPS_CHALLENGE` |                                  | Token served at `/.well-known/openai-apps-challenge` for OpenAI's domain verification        |
+| `IPINFO_AAUTH_PROVIDER_KEY`    |                                  | Ed25519 private key, PEM encoded, for AAuth; AAuth is off when unset                         |
+| `IPINFO_AAUTH_ISSUER`          |                                  | Public URL of this server for AAuth, required with the key                                   |
+| `IPINFO_AAUTH_PERSON_SERVERS`  |                                  | Comma separated AAuth person servers whose person tokens are accepted, required with the key |
 
 With the `http` transport, each request authenticates with its own `Authorization: Bearer <token>` header.
 
 Setting `IPINFO_OAUTH_ISSUER` turns on OAuth for the `http` transport. The server then advertises the issuer at `/.well-known/oauth-protected-resource`, answers requests without a valid credential with `401 Unauthorized`, and verifies access tokens against the issuer's signing keys. A verified access token is sent to the IPinfo API in place of an API token. API tokens keep working as before.
 
-Setting `IPINFO_AAUTH_PROVIDER_KEY` turns on AAuth for the `http` transport, so agents that sign their requests with AAuth can use `ipinfo_lite_lookup` without an IPinfo account. Generate the key with `openssl genpkey -algorithm ed25519`, and give every replica the same one. `IPINFO_AAUTH_ISSUER` must be the server's public URL: `https`, no port, path, or trailing slash. With AAuth on, the server also serves:
+Setting `IPINFO_AAUTH_PROVIDER_KEY` turns on AAuth for the `http` transport, so people without an IPinfo account can use `ipinfo_lite_lookup` through agents that sign their requests with AAuth. Generate the key with `openssl genpkey -algorithm ed25519`, and give every replica the same one. `IPINFO_AAUTH_ISSUER` must be the server's public URL: `https`, no port, path, or trailing slash. When `IPINFO_MCP_RESOURCE_URL` is set too, its scheme and host must match `IPINFO_AAUTH_ISSUER`, or the server won't start. `IPINFO_AAUTH_PERSON_SERVERS` lists the AAuth person servers whose person tokens are accepted, written the same way, for example `https://person.hello.coop`. With AAuth on, the server also serves:
 
-- `/aauth`, the MCP endpoint for AAuth agents, whose only tool is `ipinfo_lite_lookup`. Listing its tools needs no signature; calling one needs an AAuth signature. When `IPINFO_MCP_RESOURCE_URL` is set, only signatures made for that host are accepted.
-- `/.well-known/aauth-resource.json`, which points agents at `/aauth`. It names the origin of `IPINFO_MCP_RESOURCE_URL`, or of `IPINFO_AAUTH_ISSUER` when that is unset.
+- `/aauth`, the MCP endpoint for AAuth agents, whose only tool is `ipinfo_lite_lookup`. Listing its tools needs no signature. Calling one needs an AAuth signature presenting a person token from one of `IPINFO_AAUTH_PERSON_SERVERS`, issued for `IPINFO_AAUTH_ISSUER`; any other call is answered with `401` and `AAuth-Requirement: requirement=person-token`. When `IPINFO_MCP_RESOURCE_URL` is set, only signatures made for that host are accepted.
+- `/.well-known/aauth-resource.json`, which points agents at `/aauth`. It names `IPINFO_AAUTH_ISSUER`, which person tokens must be issued for.
 - `/.well-known/aauth-agent.json` and `/.well-known/aauth-jwks.json`, the documents of the server's own AAuth agent, `aauth:ipinfo-mcp@<issuer host>`.
 
 The main endpoint is unaffected.

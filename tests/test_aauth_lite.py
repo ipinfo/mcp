@@ -65,25 +65,25 @@ class TestLiteClient:
             assert "Authorization" not in request.headers
             assert request.headers["User-Agent"] == USER_AGENT
 
-    async def test_relays_the_agent_it_looks_up_for(self, client: LiteClient, httpx_mock: HTTPXMock) -> None:
+    async def test_relays_the_person_it_looks_up_for(self, client: LiteClient, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(url=f"{BASE_URL}/lite/8.8.8.8", method="GET", json=LITE_8888)
 
-        await client.lookup(["8.8.8.8"], agent_token="caller.agent.token")
+        await client.lookup(["8.8.8.8"], person_token="caller.person.token")
 
         request = httpx_mock.get_request()
         assert request is not None
-        assert request.headers["IPinfo-Agent-Token"] == "caller.agent.token"
-        assert '"ipinfo-agent-token"' in request.headers["Signature-Input"]
+        assert request.headers["IPinfo-Person-Token"] == "caller.person.token"
+        assert '"ipinfo-person-token"' in request.headers["Signature-Input"]
 
-    async def test_relays_nothing_without_an_agent(self, client: LiteClient, httpx_mock: HTTPXMock) -> None:
+    async def test_relays_nothing_without_a_person(self, client: LiteClient, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(url=f"{BASE_URL}/lite/8.8.8.8", method="GET", json=LITE_8888)
 
         await client.lookup(["8.8.8.8"])
 
         request = httpx_mock.get_request()
         assert request is not None
-        assert "IPinfo-Agent-Token" not in request.headers
-        assert "ipinfo-agent-token" not in request.headers["Signature-Input"]
+        assert "IPinfo-Person-Token" not in request.headers
+        assert "ipinfo-person-token" not in request.headers["Signature-Input"]
 
     @pytest.mark.parametrize("status_code", [401, 403, 429])
     async def test_propagates_errors(self, client: LiteClient, httpx_mock: HTTPXMock, status_code: int) -> None:
@@ -147,7 +147,7 @@ class TestLiteLookup:
             "code": "RATE_LIMITED",
             "message": "Rate limit exceeded.",
             "suggestion": (
-                "Lookups without an IPinfo account have reached their daily limit, try again tomorrow. "
+                "The user has reached their daily limit of lookups without an IPinfo account, try again tomorrow. "
                 "The user can get a free token at https://ipinfo.io/signup"
             ),
         }
@@ -169,6 +169,28 @@ class TestLiteLookup:
             "code": "API_ERROR",
             "message": "The IPinfo API refused this server's AAuth signature (error=unknown_key).",
             "suggestion": "Tell the user to contact IPinfo support at support@ipinfo.io",
+        }
+
+    async def test_refused_person_token_is_named(
+        self, client: LiteClient, cache: IPCache, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url=f"{BASE_URL}/lite/8.8.8.8",
+            method="GET",
+            status_code=401,
+            headers={"Signature-Error": "error=expired_jwt, relayed"},
+            json={"error": "expired_jwt", "relayed": True},
+        )
+
+        result = await ipinfo_lite_lookup(ips=["8.8.8.8"], ctx=make_context(client, cache))
+
+        assert result == {
+            "code": "API_ERROR",
+            "message": "The IPinfo API refused the user's person token (error=expired_jwt, relayed).",
+            "suggestion": (
+                "Try the request again. If it keeps failing, tell the user to contact IPinfo support at "
+                "support@ipinfo.io"
+            ),
         }
 
     async def test_api_not_accepting_agents_is_named(

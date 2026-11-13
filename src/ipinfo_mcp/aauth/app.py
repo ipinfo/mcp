@@ -11,13 +11,15 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from ipinfo_mcp.aauth.agent import JWKS_PATH, METADATA_PATH, AgentProvider
 from ipinfo_mcp.aauth.lite import create_lite_server
+from ipinfo_mcp.aauth.protocol import is_server_identifier
 from ipinfo_mcp.aauth.resource import (
-    AGENT_SCOPE_KEY,
+    PERSON_SCOPE_KEY,
     RESOURCE_METADATA_PATH,
     SIGNATURE_HEADERS,
-    AgentVerifier,
+    PersonTokenRequiredError,
+    PersonVerifier,
     SignatureError,
-    agent_token_required_response,
+    person_token_required_response,
     resource_metadata,
     signature_error_response,
 )
@@ -80,9 +82,11 @@ class AAuthMiddleware:
     Requests to AGENT_ENDPOINT_PATH go to agent_app, the MCP server agents get, which has
     only the Lite lookup and demands no bearer token. Agents such as the AAuth Connector
     list an MCP server's tools before signing anything, so a request there may set up a
-    session or list the tools unsigned. Anything else needs a signature: a refused one is
-    answered with a 401 naming why, a verified one reaches agent_app with its agent in
-    the ASGI scope. Every other request reaches app untouched.
+    session or list the tools unsigned. Anything else needs a signature presenting a
+    person token: one that has none, or presents an agent token, is answered with a 401
+    asking for a person token, a refused one with a 401 naming why, and a verified one
+    reaches agent_app with its person in the ASGI scope. Every other request reaches app
+    untouched.
 
     Also serves this server's agent provider documents, which the IPinfo API fetches
     to verify the requests this server signs as agent, and its resource metadata.
@@ -94,7 +98,7 @@ class AAuthMiddleware:
         *,
         agent: AgentProvider,
         agent_app: Starlette,
-        verifier: AgentVerifier,
+        verifier: PersonVerifier,
         origin: str,
     ) -> None:
         """
@@ -132,16 +136,19 @@ class AAuthMiddleware:
         if any(name in Headers(scope=scope) for name in SIGNATURE_HEADERS):
             try:
                 # Verified against the path the agent signed
-                agent = await self.verifier.verify(scope, body)
+                person = await self.verifier.verify(scope, body)
+            except PersonTokenRequiredError:
+                await person_token_required_response()(scope, receive, send)
+                return
             except SignatureError as exc:
                 logger.info("aauth request refused error=%s", exc.code)
                 await signature_error_response(exc.code)(scope, receive, send)
                 return
-            await self.agent_app({**agent_scope, AGENT_SCOPE_KEY: agent}, receive, send)
+            await self.agent_app({**agent_scope, PERSON_SCOPE_KEY: person}, receive, send)
         elif _is_discovery(body):
             await self.agent_app(agent_scope, receive, send)
         else:
-            await agent_token_required_response()(scope, receive, send)
+            await person_token_required_response()(scope, receive, send)
 
 
 def agent_from_env() -> AgentProvider | None:
@@ -161,14 +168,33 @@ def agent_from_env() -> AgentProvider | None:
     return AgentProvider(issuer=issuer, provider_key=provider_key)
 
 
+def person_servers_from_env() -> list[str]:
+    """
+    Get the person servers whose person tokens are accepted, from IPINFO_AAUTH_PERSON_SERVERS:
+    comma separated server identifiers, required with IPINFO_AAUTH_PROVIDER_KEY.
+    """
+    values = os.environ.get("IPINFO_AAUTH_PERSON_SERVERS", "").split(",")
+    person_servers = [value.strip() for value in values if value.strip()]
+    if not person_servers:
+        raise RuntimeError("IPINFO_AAUTH_PERSON_SERVERS must be set when IPINFO_AAUTH_PROVIDER_KEY is")
+    for person_server in person_servers:
+        if not is_server_identifier(person_server):
+            raise RuntimeError(
+                f"AAuth person server {person_server!r} must be https and a lowercase domain, "
+                "with no port, path or trailing slash"
+            )
+    return person_servers
+
+
 def with_aauth(app: ASGIApp, *, api_base_url: str, cache_ttl: float) -> ASGIApp:
     """
     Let AAuth agents use IPinfo Lite without an account, when AAuth is configured. Returns app as is otherwise.
 
-    Agents that sign their requests get a server of their own with only the Lite lookup,
-    every other request reaches app as before. See agent_from_env for the configuration.
-    When IPINFO_MCP_RESOURCE_URL names this server's public URL, only signatures made for
-    it are accepted, and the resource metadata names it, otherwise the agent's issuer.
+    Agents that sign their requests with a person token get a server of their own with only
+    the Lite lookup, every other request reaches app as before. See agent_from_env and
+    person_servers_from_env for the configuration. When IPINFO_MCP_RESOURCE_URL names this
+    server's public URL, only signatures made for it are accepted. It must be on the agent's
+    issuer, which the resource metadata names, and person tokens must be issued for.
 
     Args:
         app: The MCP app everyone else uses.
@@ -179,14 +205,20 @@ def with_aauth(app: ASGIApp, *, api_base_url: str, cache_ttl: float) -> ASGIApp:
     if agent is None:
         return app
 
-    lite_server = create_lite_server(agent=agent, api_base_url=api_base_url, cache_ttl=cache_ttl)
+    person_servers = person_servers_from_env()
     resource_url = os.environ.get("IPINFO_MCP_RESOURCE_URL")
     public_url = urlsplit(resource_url) if resource_url else None
     authority = public_url.netloc.lower() if public_url else None
+    # The resource metadata sends agents to the issuer, with person tokens issued for it, so
+    # signatures checked against a resource URL anywhere else would all be refused
+    if public_url is not None and f"{public_url.scheme}://{authority}" != agent.issuer:
+        raise RuntimeError(f"IPINFO_MCP_RESOURCE_URL must be on IPINFO_AAUTH_ISSUER, {agent.issuer}")
+
+    lite_server = create_lite_server(agent=agent, api_base_url=api_base_url, cache_ttl=cache_ttl)
     return AAuthMiddleware(
         app,
         agent=agent,
         agent_app=lite_server.http_app(path="/", stateless_http=True),
-        verifier=AgentVerifier(authority=authority),
-        origin=f"{public_url.scheme}://{authority}" if public_url else agent.issuer,
+        verifier=PersonVerifier(audience=agent.issuer, person_servers=person_servers, authority=authority),
+        origin=agent.issuer,
     )
