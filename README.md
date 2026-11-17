@@ -13,7 +13,7 @@ For the full guide, see the [official documentation](https://ipinfo.io/developer
 
 ## Installation
 
-You need an IPinfo account. Sign up for free at [ipinfo.io/signup](https://ipinfo.io/signup).
+You need an IPinfo account. Sign up for free at [ipinfo.io/signup](https://ipinfo.io/signup). To try IPinfo Lite without an account, see [Experimental AAuth support](#experimental-aauth-support).
 
 ### Hosted server
 
@@ -56,6 +56,62 @@ Then run `/mcp auth ipinfo` in Gemini CLI to sign in with your IPinfo account.
 The server is listed in the [MCP Registry](https://registry.modelcontextprotocol.io/) as `io.github.ipinfo/mcp`.
 
 The server is also listed on [LightNow](https://lightnow.ai/servers/io.github.ipinfo/mcp).
+
+## Experimental AAuth support
+
+Agents that use [AAuth](https://www.aauth.dev/) can look up IPs on the hosted server without an IPinfo account. They get a single tool, [`ipinfo_lite_lookup`](#ipinfo_lite_lookup), which returns IPinfo Lite data: country, continent, and network (ASN). Every lookup is made for a person signed in with [Hellō](https://www.hello.dev/).
+
+This support is experimental and may change.
+
+### Connecting a client
+
+Add the hosted [AAuth Connector](https://mcp.aauth.dev/) to your MCP client at `https://mcp.aauth.dev` (Streamable HTTP). The first time it connects, it asks you to sign in with Hellō.
+
+**Claude Code**
+
+```sh
+claude mcp add --transport http aauth-connector https://mcp.aauth.dev
+```
+
+Then restart Claude Code, run `/mcp`, pick `aauth-connector`, and sign in with Hellō.
+
+**Claude (claude.ai and Claude Desktop)**
+
+Go to Settings → Connectors → Add custom connector, enter `https://mcp.aauth.dev`, and complete the Hellō sign-in. Then start a new chat.
+
+**Cursor and LM Studio**
+
+Add it to `.cursor/mcp.json`, or to LM Studio's `mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "aauth-connector": { "url": "https://mcp.aauth.dev" }
+  }
+}
+```
+
+**VS Code (GitHub Copilot)**
+
+```sh
+code --add-mcp '{"name":"aauth-connector","type":"http","url":"https://mcp.aauth.dev"}'
+```
+
+**ChatGPT**
+
+Go to Settings → Connectors (developer mode) → Create, with the MCP server URL `https://mcp.aauth.dev` and OAuth authentication.
+
+### Looking up IPs
+
+Ask the assistant to connect IPinfo and look up some IPs. IPinfo is listed in the [AAuth registry](https://registry.aauth.dev/), so the assistant can find it on its own, or you can name it: `https://mcp.ipinfo.io`. For example:
+
+> Find IPinfo among the AAuth resources I can connect, then tell me where 8.8.8.8 is and which network it belongs to.
+
+> Connect to mcp.ipinfo.io and look up 1.1.1.1, 9.9.9.9 and 2a00:1450:4001:830::200e.
+
+The assistant looks the IPs up with `ipinfo_lite_lookup` through the Connector.
+
+For the other tools, sign up for an IPinfo account and connect to the [hosted server](#hosted-server).
 
 ## Tools
 
@@ -130,7 +186,7 @@ Takes no parameters. Returns `token` (omitted when connected with OAuth), `reque
 
 ### `ipinfo_lite_lookup`
 
-Only offered to agents that sign their requests with [AAuth](https://www.aauth.dev/), who get it in place of the tools above. Calling it needs a person token, which names the person the agent acts for. Takes the common parameters and returns the [Lite](https://ipinfo.io/developers/lite-api) data for each IP: `ip`, `asn`, `as_name`, `as_domain`, `country`, `country_code`, `continent`, `continent_code`. When the person reaches their daily limit for lookups without an account, it returns a `RATE_LIMITED` error.
+Only offered to agents that sign their requests with [AAuth](https://www.aauth.dev/), who get it in place of the tools above; see [Experimental AAuth support](#experimental-aauth-support). Calling it needs a person token, which names the person the agent acts for. Takes the common parameters and returns the [Lite](https://ipinfo.io/developers/lite-api) data for each IP: `ip`, `asn`, `as_name`, `as_domain`, `country`, `country_code`, `continent`, `continent_code`. When the person reaches their daily limit for lookups without an account, it returns a `RATE_LIMITED` error.
 
 ## Configuration
 
